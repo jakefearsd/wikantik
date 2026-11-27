@@ -194,4 +194,29 @@ class McpConfigTest {
         final McpConfig config = new McpConfig();
         assertEquals( "test-mcp-core", config.serverName() );
     }
+
+    @Test
+    void rateLimitPerClientParsesValidIntegerAndStripsWhitespace() {
+        final Properties props = new Properties();
+        props.setProperty( "mcp.ratelimit.perClient", " 7 " );
+        assertEquals( 7, new McpConfig( props ).rateLimitPerClient() );
+    }
+
+    @Test
+    void aRelativeInstructionsFilePathIsIgnoredEvenWhenItResolvesAgainstTheWorkingDirectory() {
+        // pom.xml exists in the module working directory, so honouring a relative path would serve it.
+        final Properties props = new Properties();
+        props.setProperty( "mcp.instructions.file", "pom.xml" );
+        final String instructions = new McpConfig( props ).instructions();
+        assertFalse( instructions.contains( "<project" ), "relative override must not be read" );
+        assertFalse( instructions.isEmpty(), "the bundled instructions are served instead" );
+    }
+
+    @Test
+    void instructionsAreLoadedOnceAndCached() {
+        final McpConfig config = new McpConfig( new Properties() );
+        final String first = config.instructions();
+        assertFalse( first.isEmpty() );
+        org.junit.jupiter.api.Assertions.assertSame( first, config.instructions() );
+    }
 }

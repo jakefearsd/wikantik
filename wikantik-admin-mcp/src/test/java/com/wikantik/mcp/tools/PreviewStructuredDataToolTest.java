@@ -293,4 +293,84 @@ class PreviewStructuredDataToolTest {
                 ( ( Map< String, Object > ) data.get( "jsonLd" ) ).get( "dateModified" ) );
         assertEquals( 1, calls[ 0 ], "lookup must run once per execute" );
     }
+
+    @SuppressWarnings( "unchecked" )
+    private Map< String, Object > preview( final PreviewStructuredDataTool t, final String slug ) {
+        final McpSchema.CallToolResult result = t.execute( new HashMap<>( Map.of( "slug", slug ) ) );
+        return gson.fromJson( ( ( McpSchema.TextContent ) result.content().get( 0 ) ).text(), Map.class );
+    }
+
+    @Test
+    @SuppressWarnings( "unchecked" )
+    void theGoodSummaryLineAppearsForExactlyFiftyToOneHundredSixtyCharacters() {
+        final int[] lengths = { 49, 50, 160, 161 };
+        final boolean[] good = { false, true, true, false };
+        for ( int i = 0; i < lengths.length; i++ ) {
+            final String slug = "PreviewLen" + lengths[ i ];
+            pm.savePage( slug, "---\ntype: article\ntags:\n- ai\ndate: 2026-03-15\nsummary: " + "w".repeat( lengths[ i ] )
+                    + "\n---\nBody." );
+            final List< String > warnings = ( List< String > ) preview( tool, slug ).get( "warnings" );
+            assertEquals( good[ i ], warnings.contains( "Summary is " + lengths[ i ] + " chars (good: 50-160 range)" ),
+                    lengths[ i ] + " -> " + warnings );
+        }
+    }
+
+    @Test
+    @SuppressWarnings( "unchecked" )
+    void aTaglessSummarylessPageGetsFallbackDescriptionsAndNoTagFields() {
+        pm.savePage( "PreviewBare", "---\ntype: article\ndate: 2026-03-15\n---\nBody." );
+
+        final Map< String, Object > data = preview( tool, "PreviewBare" );
+
+        final Map< String, Object > og = ( Map< String, Object > ) data.get( "openGraph" );
+        assertEquals( "PreviewBare - A page on TestWiki.", og.get( "description" ) );
+        assertEquals( "PreviewBare - TestWiki", og.get( "title" ) );
+        assertFalse( og.containsKey( "articleTags" ) );
+        final Map< String, Object > ld = ( Map< String, Object > ) data.get( "jsonLd" );
+        assertFalse( ld.containsKey( "description" ) );
+        assertFalse( ld.containsKey( "keywords" ) );
+        assertFalse( data.containsKey( "metaKeywords" ) );
+        final Map< String, Object > atom = ( Map< String, Object > ) data.get( "atomFeed" );
+        assertEquals( false, atom.get( "hasSummary" ) );
+        assertFalse( atom.containsKey( "categoryTags" ) );
+    }
+
+    @Test
+    @SuppressWarnings( "unchecked" )
+    void aTaggedSummarisedPageCarriesTheTagsAndSummaryOnEverySurface() {
+        pm.savePage( "PreviewTagged", "---\ntype: article\ntags:\n- ai\n- ml\nsummary: Short but present\n---\nBody." );
+
+        final Map< String, Object > data = preview( tool, "PreviewTagged" );
+
+        assertEquals( "ai, ml", data.get( "metaKeywords" ) );
+        final Map< String, Object > og = ( Map< String, Object > ) data.get( "openGraph" );
+        assertEquals( "Short but present", og.get( "description" ) );
+        assertEquals( List.of( "ai", "ml" ), og.get( "articleTags" ) );
+        final Map< String, Object > ld = ( Map< String, Object > ) data.get( "jsonLd" );
+        assertEquals( "Short but present", ld.get( "description" ) );
+        assertEquals( "ai, ml", ld.get( "keywords" ) );
+        final Map< String, Object > atom = ( Map< String, Object > ) data.get( "atomFeed" );
+        assertEquals( true, atom.get( "hasSummary" ) );
+        assertEquals( List.of( "ai", "ml" ), atom.get( "categoryTags" ) );
+    }
+
+    @Test
+    @SuppressWarnings( "unchecked" )
+    void theBaseUrlIsNormalisedWhetherOrNotItEndsInASlashOrIsMissing() {
+        pm.savePage( "PreviewRel", "---\ntype: article\ncluster: c\nrelated:\n- Other\n---\nBody." );
+        for ( final String base : new String[] { "http://h:8080/", "http://h:8080" } ) {
+            final PreviewStructuredDataTool t = new PreviewStructuredDataTool( pm, "TestWiki", base );
+            final Map< String, Object > ld = ( Map< String, Object > ) preview( t, "PreviewRel" ).get( "jsonLd" );
+            assertEquals( List.of( "http://h:8080/wiki/Other" ), ld.get( "relatedLink" ), base );
+        }
+        final PreviewStructuredDataTool noBase = new PreviewStructuredDataTool( pm, "TestWiki", null );
+        final Map< String, Object > ld = ( Map< String, Object > ) preview( noBase, "PreviewRel" ).get( "jsonLd" );
+        assertEquals( List.of( "http://localhost/wiki/Other" ), ld.get( "relatedLink" ) );
+    }
+
+    @Test
+    void aBlankSlugIsRefused() {
+        final McpSchema.CallToolResult result = tool.execute( new HashMap<>( Map.of( "slug", "  " ) ) );
+        assertTrue( result.isError() );
+    }
 }

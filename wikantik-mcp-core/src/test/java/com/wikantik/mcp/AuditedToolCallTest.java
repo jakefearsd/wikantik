@@ -211,4 +211,65 @@ class AuditedToolCallTest {
         assertEquals( "?", out.get( 0 ).get( "mcp.client.name" ).getAsString() );
         assertEquals( "none", out.get( 0 ).get( "mcp.session.hash" ).getAsString() );
     }
+
+    private static long loggedDurationMs( final String line ) {
+        final java.util.regex.Matcher m = Pattern.compile( "durationMs=(\\d+)" ).matcher( line );
+        assertTrue( m.find(), line );
+        return Long.parseLong( m.group( 1 ) );
+    }
+
+    @Test
+    void loggedDurationIsTheElapsedMillisecondsOfTheCall() {
+        final List< String > lines = logged( () -> AuditedToolCall.run( "MCP", "admin", tool(), exchange( "c" ), null,
+                () -> {
+                    try {
+                        Thread.sleep( 30 );
+                    } catch ( final InterruptedException e ) {
+                        Thread.currentThread().interrupt();
+                        throw new IllegalStateException( e );
+                    }
+                    return result( false );
+                } ) );
+        final long ms = loggedDurationMs( lines.get( 0 ) );
+        assertTrue( ms >= 25 && ms < 10_000, "durationMs=" + ms );
+    }
+
+    @Test
+    void eventDurationIsElapsedNanosecondsOfTheCall() {
+        final List< JsonObject > out = events( () -> AuditedToolCall.run( "MCP", "admin", tool(), exchange( "c" ),
+                null, () -> {
+                    try {
+                        Thread.sleep( 30 );
+                    } catch ( final InterruptedException e ) {
+                        Thread.currentThread().interrupt();
+                        throw new IllegalStateException( e );
+                    }
+                    return result( false );
+                } ) );
+        final long ns = Long.parseLong( out.get( 0 ).get( "event.duration" ).getAsString() );
+        assertTrue( ns >= 25_000_000L && ns < 10_000_000_000L, "event.duration=" + ns );
+    }
+
+    @Test
+    void aNullResultIsASuccessWithNoErrorType() {
+        final List< JsonObject > out = events( () -> AuditedToolCall.run( "MCP", "admin", tool(), exchange( "c" ),
+                null, () -> null ) );
+        assertEquals( "success", out.get( 0 ).get( "event.outcome" ).getAsString() );
+        assertFalse( out.get( 0 ).has( "error.type" ) );
+        final List< String > lines = logged( () -> AuditedToolCall.run( "MCP", "admin", tool(), exchange( "c" ),
+                null, () -> null ) );
+        assertTrue( lines.get( 0 ).endsWith( "isError=false" ), lines.get( 0 ) );
+    }
+
+    @Test
+    void aResultWithNoIsErrorFlagIsASuccess() {
+        final McpSchema.CallToolResult unflagged = McpSchema.CallToolResult.builder().addTextContent( "x" ).build();
+        final List< JsonObject > out = events( () -> AuditedToolCall.run( "MCP", "admin", tool(), exchange( "c" ),
+                null, () -> unflagged ) );
+        assertEquals( "success", out.get( 0 ).get( "event.outcome" ).getAsString() );
+        assertFalse( out.get( 0 ).has( "error.type" ) );
+        final List< String > lines = logged( () -> AuditedToolCall.run( "MCP", "admin", tool(), exchange( "c" ),
+                null, () -> unflagged ) );
+        assertTrue( lines.get( 0 ).endsWith( "isError=false" ), lines.get( 0 ) );
+    }
 }

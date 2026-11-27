@@ -544,4 +544,52 @@ class VerifyPagesToolTest {
         assertNull( entry.get( "seoWarnings" ) );
         assertTrue( seoIssues.isEmpty() );
     }
+
+    @Test
+    @SuppressWarnings( "unchecked" )
+    void missingMetadataFieldsAreListedAlphabetically() throws Exception {
+        pm.savePage( "Bare", "No frontmatter at all." );
+        refMgr.addReferences( "Bare", Set.of() );
+
+        final Map< String, Object > data = executeAndParse( new HashMap<>( Map.of( "slugs", List.of( "Bare" ),
+                "checks", List.of( "metadata_completeness" ) ) ) );
+
+        final Map< String, Object > page = ( ( List< Map< String, Object > > ) data.get( "pages" ) ).get( 0 );
+        assertEquals( List.of( "summary", "tags", "type" ), page.get( "missingMetadata" ) );
+    }
+
+    @Test
+    @SuppressWarnings( "unchecked" )
+    void outboundAndBrokenLinksAreListedAlphabetically() throws Exception {
+        pm.savePage( "Src", "x" );
+        pm.savePage( "RealOne", "x" );
+        refMgr.addReferences( "Src", new java.util.LinkedHashSet<>( List.of( "Zed", "RealOne", "Mid", "Alpha" ) ) );
+
+        final Map< String, Object > data = executeAndParse( new HashMap<>( Map.of( "slugs", List.of( "Src" ),
+                "checks", List.of( "outbound_links", "broken_links" ) ) ) );
+
+        final Map< String, Object > page = ( ( List< Map< String, Object > > ) data.get( "pages" ) ).get( 0 );
+        assertEquals( List.of( "Alpha", "Mid", "RealOne", "Zed" ), page.get( "outboundLinks" ) );
+        assertEquals( List.of( "Alpha", "Mid", "Zed" ), page.get( "brokenLinks" ) );
+        assertEquals( 3.0, ( ( Map< String, Object > ) data.get( "summary" ) ).get( "totalBrokenLinks" ) );
+    }
+
+    @Test
+    @SuppressWarnings( "unchecked" )
+    void onlyTheRequestedLinkKindIsReported() throws Exception {
+        pm.savePage( "Src2", "x" );
+        refMgr.addReferences( "Src2", Set.of( "Gone" ) );
+
+        final Map< String, Object > outboundOnly = executeAndParse( new HashMap<>( Map.of( "slugs", List.of( "Src2" ),
+                "checks", List.of( "outbound_links" ) ) ) );
+        final Map< String, Object > page1 = ( ( List< Map< String, Object > > ) outboundOnly.get( "pages" ) ).get( 0 );
+        assertEquals( List.of( "Gone" ), page1.get( "outboundLinks" ) );
+        assertFalse( page1.containsKey( "brokenLinks" ) );
+
+        final Map< String, Object > brokenOnly = executeAndParse( new HashMap<>( Map.of( "slugs", List.of( "Src2" ),
+                "checks", List.of( "broken_links" ) ) ) );
+        final Map< String, Object > page2 = ( ( List< Map< String, Object > > ) brokenOnly.get( "pages" ) ).get( 0 );
+        assertFalse( page2.containsKey( "outboundLinks" ) );
+        assertEquals( List.of( "Gone" ), page2.get( "brokenLinks" ) );
+    }
 }

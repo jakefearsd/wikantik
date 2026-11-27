@@ -85,4 +85,35 @@ class GetOrphanedPagesToolTest {
         assertEquals( "get_orphaned_pages", def.name() );
         assertTrue( def.annotations().readOnlyHint() );
     }
+
+    @Test
+    @SuppressWarnings( "unchecked" )
+    void systemPagesAreExcludedAndTheRestAreSortedWithAMatchingCount() throws Exception {
+        final com.wikantik.api.managers.SystemPageRegistry registry =
+                org.mockito.Mockito.mock( com.wikantik.api.managers.SystemPageRegistry.class );
+        org.mockito.Mockito.when( registry.isSystemPage( "LeftMenu" ) ).thenReturn( true );
+        final com.wikantik.api.managers.ReferenceManager refs =
+                org.mockito.Mockito.mock( com.wikantik.api.managers.ReferenceManager.class );
+        org.mockito.Mockito.when( refs.findUnreferenced() ).thenReturn(
+                new java.util.LinkedHashSet<>( List.of( "Zed", "LeftMenu", "Alpha" ) ) );
+
+        final Map< String, Object > data = gson.fromJson( ( ( McpSchema.TextContent ) new GetOrphanedPagesTool( refs, registry )
+                .execute( Map.of() ).content().get( 0 ) ).text(), Map.class );
+
+        assertEquals( List.of( "Alpha", "Zed" ), data.get( "orphanedPages" ) );
+        assertEquals( 2.0, data.get( "count" ) );
+    }
+
+    @Test
+    @SuppressWarnings( "unchecked" )
+    void withoutASystemPageRegistryEveryUnreferencedPageIsReported() throws Exception {
+        final com.wikantik.api.managers.ReferenceManager refs =
+                org.mockito.Mockito.mock( com.wikantik.api.managers.ReferenceManager.class );
+        org.mockito.Mockito.when( refs.findUnreferenced() ).thenReturn( Set.of( "Only" ) );
+
+        final Map< String, Object > data = gson.fromJson( ( ( McpSchema.TextContent ) new GetOrphanedPagesTool( refs, null )
+                .execute( Map.of() ).content().get( 0 ) ).text(), Map.class );
+
+        assertEquals( List.of( "Only" ), data.get( "orphanedPages" ) );
+    }
 }

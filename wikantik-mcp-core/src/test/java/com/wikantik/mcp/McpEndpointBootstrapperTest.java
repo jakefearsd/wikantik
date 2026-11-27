@@ -33,6 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -190,5 +191,24 @@ class McpEndpointBootstrapperTest {
         return Thread.getAllStackTraces().keySet().stream()
                 .filter( t -> t.isAlive() && t.getName().startsWith( "streamable-http-server-transport-session-sweeper" ) )
                 .toList();
+    }
+
+    @Test
+    void registerTransportMapsTheEndpointAsyncAndWithTheConfiguredStartupOrder() {
+        final ServletContext context = mock( ServletContext.class );
+        final ServletRegistration.Dynamic registration = mock( ServletRegistration.Dynamic.class );
+        when( context.addServlet( anyString(), any( Servlet.class ) ) ).thenReturn( registration );
+
+        validBuilder().loadOnStartup( 7 ).build().registerTransport( context ).closeGracefully().block();
+
+        verify( registration ).addMapping( "/test-mcp" );
+        verify( registration ).setAsyncSupported( true );
+        verify( registration ).setLoadOnStartup( 7 );
+    }
+
+    @Test
+    void agentTokensSetterIsFluent() {
+        final McpEndpointBootstrapper.Builder builder = validBuilder();
+        org.junit.jupiter.api.Assertions.assertSame( builder, builder.agentTokens( token -> java.util.Optional.empty() ) );
     }
 }

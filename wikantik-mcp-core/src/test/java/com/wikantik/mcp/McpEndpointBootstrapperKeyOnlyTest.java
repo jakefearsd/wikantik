@@ -139,4 +139,38 @@ class McpEndpointBootstrapperKeyOnlyTest {
         assertEquals( McpAccessFilter.class, registeredFilter( false, OPEN ).getClass(),
             "the other MCP endpoints keep the plain filter" );
     }
+
+    @Test
+    void theFilterIsMappedAheadOfNothingAndRunsAsync() {
+        Thread.currentThread().setContextClassLoader( serving( OPEN, original ) );
+        final ServletContext ctx = mock( ServletContext.class );
+        final FilterRegistration.Dynamic reg = mock( FilterRegistration.Dynamic.class );
+        when( ctx.addFilter( anyString(), any( Filter.class ) ) ).thenReturn( reg );
+        McpEndpointBootstrapper.builder().logTag( "Test" ).endpointPath( "/test-mcp" ).filterName( "testFilter" )
+            .servletName( "testServlet" ).engine( mock( Engine.class ) ).build().registerAccessFilter( ctx );
+        verify( reg ).addMappingForUrlPatterns( java.util.EnumSet.of( jakarta.servlet.DispatcherType.REQUEST ), true,
+            "/test-mcp" );
+        verify( reg ).setAsyncSupported( true );
+    }
+
+    @Test
+    void anAgentVerifierGivenToTheBuilderIsInstalledOnTheRegisteredFilter() {
+        Thread.currentThread().setContextClassLoader( serving( "", original ) );
+        final ServletContext ctx = mock( ServletContext.class );
+        when( ctx.addFilter( anyString(), any( Filter.class ) ) ).thenReturn( mock( FilterRegistration.Dynamic.class ) );
+        McpEndpointBootstrapper.builder().logTag( "Test" ).endpointPath( "/test-mcp" ).filterName( "testFilter" )
+            .servletName( "testServlet" ).requiredScope( ApiKeyService.Scope.WORK ).keyOnly( true )
+            .agentTokens( token -> "wka_known".equals( token )
+                ? java.util.Optional.of( new com.wikantik.auth.apikeys.AgentTokenAuth.AgentRef( 5, 6 ) )
+                : java.util.Optional.empty() )
+            .engine( mock( Engine.class ) ).build().registerAccessFilter( ctx );
+        final ArgumentCaptor< Filter > captured = ArgumentCaptor.forClass( Filter.class );
+        verify( ctx ).addFilter( eq( "testFilter" ), captured.capture() );
+
+        final HttpServletRequest req = mock( HttpServletRequest.class );
+        when( req.getRemoteAddr() ).thenReturn( "1.2.3.4" );
+        when( req.getHeader( "Authorization" ) ).thenReturn( "Bearer wka_known" );
+        final McpAccessFilter.Outcome outcome = ( ( McpAccessFilter ) captured.getValue() ).authorize( req );
+        assertEquals( "agent:6", assertInstanceOf( McpAccessFilter.Outcome.Allowed.class, outcome ).clientId() );
+    }
 }

@@ -50,4 +50,13 @@ class SessionHashTest {
     void outputNeverContainsTheInput() {
         assertFalse( SessionHash.of( "abcdef123456" ).contains( "abcdef123456" ) );
     }
+
+    @Test
+    void theHashIsSaltedNotAPlainSha256OfTheId() throws Exception {
+        final java.security.MessageDigest sha = java.security.MessageDigest.getInstance( "SHA-256" );
+        final String plain = java.util.HexFormat.of().formatHex(
+                sha.digest( "session-abc".getBytes( java.nio.charset.StandardCharsets.UTF_8 ) ) ).substring( 0, 12 );
+        assertNotEquals( plain, SessionHash.of( "session-abc" ),
+                "an unsalted digest of a guessable session id could be reversed by brute force" );
+    }
 }

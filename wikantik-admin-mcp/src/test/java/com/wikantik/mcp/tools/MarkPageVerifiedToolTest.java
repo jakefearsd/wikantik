@@ -34,10 +34,12 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -175,5 +177,99 @@ class MarkPageVerifiedToolTest {
         final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
         assertTrue( text.contains( "disk full" ), text );
         assertTrue( text.contains( "\"succeeded\":0" ), text );
+    }
+
+    private static com.google.gson.JsonObject json( final McpSchema.CallToolResult r ) {
+        return com.google.gson.JsonParser.parseString( ( (McpSchema.TextContent) r.content().get( 0 ) ).text() )
+            .getAsJsonObject();
+    }
+
+    @Test
+    void execute_aBlankVerifierArgumentFallsBackToTheDefaultAuthor() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        final PageSaveHelper helper = mock( PageSaveHelper.class );
+        final Page page = mock( Page.class );
+        when( pm.getPage( "P" ) ).thenReturn( page );
+        when( pm.getPureText( page ) ).thenReturn( "body" );
+        final MarkPageVerifiedTool tool = new MarkPageVerifiedTool( helper, pm, null );
+        tool.setDefaultAuthor( "bot" );
+
+        final var json = json( tool.execute( Map.of( "slugs", List.of( "P" ), "verifier", "   " ) ) );
+
+        assertEquals( "bot", json.getAsJsonArray( "results" ).get( 0 ).getAsJsonObject().get( "verifiedBy" ).getAsString() );
+    }
+
+    @Test
+    void execute_aSuppliedVerifierIsStrippedAndRecordedAsAuthorAndInTheDefaultChangeNote() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        final PageSaveHelper helper = mock( PageSaveHelper.class );
+        final Page page = mock( Page.class );
+        when( pm.getPage( "P" ) ).thenReturn( page );
+        when( pm.getPureText( page ) ).thenReturn( "body" );
+        final MarkPageVerifiedTool tool = new MarkPageVerifiedTool( helper, pm, null );
+        tool.setDefaultAuthor( "bot" );
+
+        tool.execute( Map.of( "slugs", List.of( "P" ), "verifier", " alice " ) );
+
+        final org.mockito.ArgumentCaptor< SaveOptions > opts = org.mockito.ArgumentCaptor.forClass( SaveOptions.class );
+        verify( helper ).saveText( eq( "P" ), contains( "verified_by: alice" ), opts.capture() );
+        assertEquals( "alice", opts.getValue().author() );
+        assertEquals( "verified by alice", opts.getValue().changeNote() );
+    }
+
+    @Test
+    void execute_aGivenChangeNoteReplacesTheDefaultAndABlankOneDoesNot() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        final PageSaveHelper helper = mock( PageSaveHelper.class );
+        final Page page = mock( Page.class );
+        when( pm.getPage( "P" ) ).thenReturn( page );
+        when( pm.getPureText( page ) ).thenReturn( "body" );
+        final MarkPageVerifiedTool tool = new MarkPageVerifiedTool( helper, pm, null );
+
+        tool.execute( Map.of( "slugs", List.of( "P" ), "verifier", "v", "changeNote", "audited Q3" ) );
+        tool.execute( Map.of( "slugs", List.of( "P" ), "verifier", "v", "changeNote", "  " ) );
+
+        final org.mockito.ArgumentCaptor< SaveOptions > opts = org.mockito.ArgumentCaptor.forClass( SaveOptions.class );
+        verify( helper, times( 2 ) ).saveText( eq( "P" ), anyString(), opts.capture() );
+        assertEquals( "audited Q3", opts.getAllValues().get( 0 ).changeNote() );
+        assertEquals( "verified by v", opts.getAllValues().get( 1 ).changeNote() );
+    }
+
+    @Test
+    void execute_aBlankConfidenceDoesNotPinOneButARealOneIsWritten() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        final PageSaveHelper helper = mock( PageSaveHelper.class );
+        final Page page = mock( Page.class );
+        when( pm.getPage( "P" ) ).thenReturn( page );
+        when( pm.getPureText( page ) ).thenReturn( "body" );
+        final MarkPageVerifiedTool tool = new MarkPageVerifiedTool( helper, pm, null );
+
+        final var blank = json( tool.execute( Map.of( "slugs", List.of( "P" ), "verifier", "v", "confidence", " " ) ) );
+        final var pinned = json( tool.execute( Map.of( "slugs", List.of( "P" ), "verifier", "v",
+            "confidence", "provisional" ) ) );
+
+        assertFalse( blank.getAsJsonArray( "results" ).get( 0 ).getAsJsonObject().has( "confidence" ) );
+        assertEquals( "provisional",
+            pinned.getAsJsonArray( "results" ).get( 0 ).getAsJsonObject().get( "confidence" ).getAsString() );
+    }
+
+    @Test
+    void execute_slugsAreTrimmedAndANullEntryIsABlankNameFailure() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        final PageSaveHelper helper = mock( PageSaveHelper.class );
+        final Page page = mock( Page.class );
+        when( pm.getPage( "P" ) ).thenReturn( page );
+        when( pm.getPureText( page ) ).thenReturn( "body" );
+        final MarkPageVerifiedTool tool = new MarkPageVerifiedTool( helper, pm, null );
+
+        final java.util.ArrayList< Object > slugs = new java.util.ArrayList<>();
+        slugs.add( " P " );
+        slugs.add( null );
+        final var json = json( tool.execute( Map.of( "slugs", slugs, "verifier", "v" ) ) );
+
+        assertEquals( 1, json.get( "succeeded" ).getAsInt() );
+        assertEquals( 2, json.get( "total" ).getAsInt() );
+        assertEquals( "blank page name",
+            json.getAsJsonArray( "results" ).get( 1 ).getAsJsonObject().get( "error" ).getAsString() );
     }
 }

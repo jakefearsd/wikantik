@@ -248,4 +248,101 @@ class WritePagesToolTest {
             "per-page save exception should land in the entry's error field" );
         assertTrue( text.contains( "\"failedCount\":1" ) );
     }
+
+    private static com.google.gson.JsonObject json( final McpSchema.CallToolResult r ) {
+        return com.google.gson.JsonParser.parseString( ( (McpSchema.TextContent) r.content().get( 0 ) ).text() )
+            .getAsJsonObject();
+    }
+
+    @Test
+    void execute_aMixedBatchReportsEachOutcomeInOrderWithExactCounts() {
+        final PageManager pm = mock( PageManager.class );
+        when( pm.getPage( "Exists" ) ).thenReturn( mock( Page.class ) );
+        final WritePagesTool tool = new WritePagesTool( mock( PageSaveHelper.class ), pm, null );
+
+        final var json = json( tool.execute( Map.of( "pages", List.of(
+            Map.of( "slug", "Fresh", "content", "b" ),
+            Map.of( "slug", "Exists", "content", "b" ),
+            Map.of( "slug", " ", "content", "b" ),
+            Map.of( "slug", "NoBody" ) ) ) ) );
+
+        final var results = json.getAsJsonArray( "results" );
+        assertEquals( 4, results.size() );
+        assertTrue( results.get( 0 ).getAsJsonObject().get( "created" ).getAsBoolean() );
+        assertEquals( "already exists", results.get( 1 ).getAsJsonObject().get( "error" ).getAsString() );
+        assertFalse( results.get( 2 ).getAsJsonObject().get( "created" ).getAsBoolean() );
+        assertEquals( "content must not be null", results.get( 3 ).getAsJsonObject().get( "error" ).getAsString() );
+        final var summary = json.getAsJsonObject( "summary" );
+        assertEquals( 4, summary.get( "total" ).getAsInt() );
+        assertEquals( 1, summary.get( "createdCount" ).getAsInt() );
+        assertEquals( 3, summary.get( "failedCount" ).getAsInt() );
+    }
+
+    @Test
+    void execute_aPageWithNoMetadataIsSavedWithNullMetadataAndReplaceSemantics() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        final PageSaveHelper helper = mock( PageSaveHelper.class );
+        final WritePagesTool tool = new WritePagesTool( helper, pm, null );
+        tool.setDefaultAuthor( "bot" );
+
+        tool.execute( Map.of( "pages", List.of( Map.of( "slug", "Plain", "content", "just text" ) ) ) );
+
+        final org.mockito.ArgumentCaptor< SaveOptions > opts = org.mockito.ArgumentCaptor.forClass( SaveOptions.class );
+        verify( helper ).saveText( eq( "Plain" ), eq( "just text" ), opts.capture() );
+        assertNull( opts.getValue().metadata() );
+        assertTrue( opts.getValue().replaceMetadata() );
+        assertEquals( "write_pages", opts.getValue().changeNote() );
+        assertEquals( "markdown", opts.getValue().markupSyntax() );
+        assertEquals( "bot", opts.getValue().author() );
+    }
+
+    @Test
+    void execute_structuredMetadataIsPassedToTheSaveAndANonObjectMetadataIsIgnored() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        final PageSaveHelper helper = mock( PageSaveHelper.class );
+        final WritePagesTool tool = new WritePagesTool( helper, pm, null );
+
+        tool.execute( Map.of( "pages", List.of(
+            Map.of( "slug", "WithMeta", "content", "b", "metadata", Map.of( "cluster", "c1" ) ),
+            Map.of( "slug", "BadMeta", "content", "b", "metadata", "not-a-map" ) ) ) );
+
+        final org.mockito.ArgumentCaptor< SaveOptions > withMeta = org.mockito.ArgumentCaptor.forClass( SaveOptions.class );
+        verify( helper ).saveText( eq( "WithMeta" ), anyString(), withMeta.capture() );
+        assertEquals( "c1", withMeta.getValue().metadata().get( "cluster" ) );
+        final org.mockito.ArgumentCaptor< SaveOptions > badMeta = org.mockito.ArgumentCaptor.forClass( SaveOptions.class );
+        verify( helper ).saveText( eq( "BadMeta" ), anyString(), badMeta.capture() );
+        assertNull( badMeta.getValue().metadata() );
+    }
+
+    @Test
+    void execute_staleWarningsFromAnEarlierSaveAreNotAttachedToACreatedPage() {
+        final PageManager pm = mock( PageManager.class );
+        com.wikantik.api.frontmatter.schema.FrontmatterWarningSink.put( "Fresh", List.of(
+            com.wikantik.api.frontmatter.schema.FieldViolation.of( "x", com.wikantik.api.frontmatter.schema.Severity.WARNING,
+                "x", "stale" ) ) );
+        final WritePagesTool tool = new WritePagesTool( mock( PageSaveHelper.class ), pm, null );
+
+        final String text = ( (McpSchema.TextContent) tool.execute( Map.of( "pages", List.of(
+            Map.of( "slug", "Fresh", "content", "b" ) ) ) ).content().get( 0 ) ).text();
+
+        assertFalse( text.contains( "stale" ), text );
+        assertFalse( text.contains( "frontmatterWarnings" ), text );
+    }
+
+    @Test
+    void execute_saveWarningsOfTheCreatedPageAreAttachedToItsEntry() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        final PageSaveHelper helper = mock( PageSaveHelper.class );
+        org.mockito.Mockito.doAnswer( inv -> {
+            com.wikantik.api.frontmatter.schema.FrontmatterWarningSink.put( "Fresh", List.of(
+                com.wikantik.api.frontmatter.schema.FieldViolation.of( "summary",
+                    com.wikantik.api.frontmatter.schema.Severity.WARNING, "summary.length", "too short" ) ) );
+            return null;
+        } ).when( helper ).saveText( eq( "Fresh" ), anyString(), any( SaveOptions.class ) );
+
+        final String text = ( (McpSchema.TextContent) new WritePagesTool( helper, pm, null ).execute( Map.of( "pages",
+            List.of( Map.of( "slug", "Fresh", "content", "b" ) ) ) ).content().get( 0 ) ).text();
+
+        assertTrue( text.contains( "frontmatterWarnings" ) && text.contains( "too short" ), text );
+    }
 }

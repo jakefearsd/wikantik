@@ -139,7 +139,12 @@ final class FrontmatterNormalizer {
             if ( currentStr.isEmpty() ) {
                 final Map< String, Object > reordered = new LinkedHashMap<>( merged.size() + 1 );
                 reordered.put( "canonical_id", existingCanonicalId );
-                reordered.putAll( merged );
+                // The agent's own blank/whitespace canonical_id must not overwrite the carried-forward one.
+                merged.forEach( ( key, value ) -> {
+                    if ( !"canonical_id".equals( key ) ) {
+                        reordered.put( key, value );
+                    }
+                } );
                 merged.clear();
                 merged.putAll( reordered );
             }

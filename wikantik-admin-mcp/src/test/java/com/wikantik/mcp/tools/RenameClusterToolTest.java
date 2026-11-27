@@ -197,4 +197,72 @@ class RenameClusterToolTest {
         assertEquals( 0.0, data.get( "pageCount" ) );
         assertFalse( ( Boolean ) data.get( "applied" ) );
     }
+
+    @Test
+    @SuppressWarnings( "unchecked" )
+    void a_preview_lists_every_change_with_both_clusters_and_tells_the_caller_how_to_apply() throws Exception {
+        corpus( page( "MLHub", PageType.HUB, "machine-learning" ),
+                page( "InferenceServing", PageType.ARTICLE, "machine-learning/mlops" ) );
+
+        final Map< String, Object > data = call( new HashMap<>( Map.of( "from", "machine-learning", "to", "ml" ) ) );
+
+        assertEquals( "machine-learning", data.get( "from" ) );
+        assertEquals( "ml", data.get( "to" ) );
+        assertEquals( List.of( Map.of( "slug", "MLHub", "fromCluster", "machine-learning", "toCluster", "ml" ),
+                Map.of( "slug", "InferenceServing", "fromCluster", "machine-learning/mlops", "toCluster", "ml/mlops" ) ),
+                data.get( "changes" ) );
+        assertEquals( "Re-run with confirm=true to apply.", data.get( "hint" ) );
+        assertEquals( List.of(), data.get( "conflicts" ) );
+    }
+
+    @Test
+    void an_empty_plan_says_nothing_names_the_cluster() throws Exception {
+        corpus();
+
+        final Map< String, Object > data = call( new HashMap<>( Map.of( "from", "ghost", "to", "spirit" ) ) );
+
+        assertEquals( "No page names cluster 'ghost'. Nothing to rename.", data.get( "hint" ) );
+    }
+
+    @Test
+    void a_conflict_is_refused_without_confirm_too_and_is_audited() throws Exception {
+        corpus( page( "AmericanCoinageHub", PageType.HUB, "american-coinage" ) );
+        final PageDescriptor incumbent = page( "CoinCollectingHub", PageType.HUB, "numismatics" );
+        when( structural.getCluster( "numismatics" ) ).thenReturn( Optional.of(
+                new ClusterDetails( "numismatics", incumbent, List.of( incumbent ), Map.of(), Instant.now() ) ) );
+        tool.setDefaultAuthor( "curator" );
+
+        final java.util.concurrent.atomic.AtomicReference< McpSchema.CallToolResult > result =
+                new java.util.concurrent.atomic.AtomicReference<>();
+        final List< String > audit = SecurityLogCapture.during( () -> result.set(
+                tool.execute( new HashMap<>( Map.of( "from", "american-coinage", "to", "numismatics" ) ) ) ) );
+
+        assertTrue( result.get().isError() );
+        assertEquals( List.of( "MCP_WRITE tool=rename_cluster action=refused-conflict "
+                + "target=american-coinage->numismatics author=curator" ), audit );
+    }
+
+    @Test
+    void a_confirmed_rename_reports_the_result_fields_and_writes_each_page() throws Exception {
+        corpus( page( "MLHub", PageType.HUB, "machine-learning" ) );
+
+        final Map< String, Object > data = call( new HashMap<>( Map.of( "from", "machine-learning", "to", "ml",
+                "confirm", true ) ) );
+
+        assertEquals( "machine-learning", data.get( "from" ) );
+        assertEquals( "ml", data.get( "to" ) );
+        assertEquals( 1.0, data.get( "pageCount" ) );
+        assertEquals( Map.of(), data.get( "failures" ) );
+    }
+
+    @Test
+    void confirm_false_previews_exactly_like_no_confirm() throws Exception {
+        corpus( page( "MLHub", PageType.HUB, "machine-learning" ) );
+
+        final Map< String, Object > data = call( new HashMap<>( Map.of( "from", "machine-learning", "to", "ml",
+                "confirm", false ) ) );
+
+        assertEquals( false, data.get( "applied" ) );
+        verifyNoInteractions( saveHelper );
+    }
 }

@@ -114,4 +114,48 @@ class GetBrokenLinksToolTest {
         assertEquals( "get_broken_links", def.name() );
         assertTrue( def.annotations().readOnlyHint() );
     }
+
+    @Test
+    void nonWikiTargetsAreRecognisedByShapeAndRealPageNamesAreNot() {
+        final String[] nonWiki = { null, "", "   ", "..", "../x", "./x", "a/b", "a\\b", "/abs", "Foo.java", "q.sql",
+            "c.xml", "p.html", "http://x" };
+        for ( final String t : nonWiki ) {
+            assertTrue( GetBrokenLinksTool.isNonWikiTarget( t ), String.valueOf( t ) );
+        }
+        final String[] wiki = { "Page", "CamelCase2", "dotted.name", "Foo.javascript", "a.b", ".hidden", "xml", "ends.htm" };
+        for ( final String t : wiki ) {
+            assertFalse( GetBrokenLinksTool.isNonWikiTarget( t ), t );
+        }
+    }
+
+    @Test
+    @SuppressWarnings( "unchecked" )
+    void brokenLinksAndTheirReferrersAreListedInAlphabeticalOrderWithNonWikiTargetsDropped() throws Exception {
+        refMgr.addReferences( "Zed", Set.of( "Missing2", "Missing1", "../src/Foo.java" ) );
+        refMgr.addReferences( "Alpha", Set.of( "Missing1" ) );
+
+        final Map< String, Object > data = gson.fromJson(
+                ( ( McpSchema.TextContent ) tool.execute( Map.of() ).content().get( 0 ) ).text(), Map.class );
+
+        final List< Map< String, Object > > broken = ( List< Map< String, Object > > ) data.get( "brokenLinks" );
+        assertEquals( List.of( "Missing1", "Missing2" ), broken.stream().map( b -> b.get( "pageName" ) ).toList() );
+        assertEquals( List.of( "Alpha", "Zed" ), broken.get( 0 ).get( "referencedBy" ) );
+        assertEquals( List.of( "Zed" ), broken.get( 1 ).get( "referencedBy" ) );
+        assertEquals( 2.0, data.get( "count" ) );
+        assertEquals( List.of(), data.get( "brokenBlockRefs" ) );
+        assertEquals( 0.0, data.get( "blockRefCount" ) );
+    }
+
+    @Test
+    @SuppressWarnings( "unchecked" )
+    void blockRefsAreNotCheckedWhenOnlyOneOfThePageManagerAndResolverIsGiven() throws Exception {
+        pm.savePage( "Src", "see [[Tgt#^gone]]" );
+        pm.savePage( "Tgt", "Para ^ok" );
+        final GetBrokenLinksTool noResolver = new GetBrokenLinksTool( refMgr, pm, null );
+
+        final Map< String, Object > data = gson.fromJson(
+                ( ( McpSchema.TextContent ) noResolver.execute( Map.of() ).content().get( 0 ) ).text(), Map.class );
+
+        assertEquals( List.of(), data.get( "brokenBlockRefs" ) );
+    }
 }

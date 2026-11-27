@@ -415,4 +415,88 @@ class McpToolUtilsTest {
         final String matchingHash = McpToolUtils.computeContentHash( "current text" );
         assertNull( McpToolUtils.checkVersionOrHash( pm, "Existing", 0, matchingHash, McpToolUtils.SHARED_GSON ) );
     }
+
+    @Test
+    void checkForSerializedResponseNeedsBraceExistsOrPageNameAndContent() {
+        final Object[][] cases = {
+            { "{\"exists\":true,\"content\":\"abcdefg\"}", true },
+            { "{\"pageName\":\"Foo\",\"content\":\"abcdefg\"}", true },
+            { "{\"exists\":true,\"pageName\":\"Foo\"}", false },
+            { "{\"foo\":true,\"content\":\"abcdefghi\"}", false },
+            { "  {\"exists\":true,\"content\":\"abcdefg\"}", true },
+            { "x{\"exists\":true,\"content\":\"abcdefg\"}", false } };
+        for ( final Object[] c : cases ) {
+            final McpSchema.CallToolResult result = McpToolUtils.checkForSerializedResponse( ( String ) c[ 0 ] );
+            assertEquals( c[ 1 ], result != null, ( String ) c[ 0 ] );
+            if ( result != null ) {
+                assertTrue( result.isError() );
+            }
+        }
+    }
+
+    @Test
+    void checkForSerializedResponseLengthBoundaryIsTwentyExclusive() {
+        final String tight = "{\"exists\"\"content\"";
+        assertEquals( 18, tight.length() );
+        assertNull( McpToolUtils.checkForSerializedResponse( tight + "  " ), "exactly 20 chars is not scanned" );
+        assertTrue( McpToolUtils.checkForSerializedResponse( tight + "   " ).isError(), "21 chars is scanned" );
+    }
+
+    @Test
+    void checkVersionOrHashDoesNotTouchThePageManagerWithoutExpectations() {
+        final PageManager pm = mock( PageManager.class );
+        final Page page = mock( Page.class );
+        when( page.getVersion() ).thenReturn( 5 );
+        when( pm.getPage( "Existing" ) ).thenReturn( page );
+        assertNull( McpToolUtils.checkVersionOrHash( pm, "Existing", 0, null, McpToolUtils.SHARED_GSON ) );
+        assertNull( McpToolUtils.checkVersionOrHash( pm, "Existing", -1, null, McpToolUtils.SHARED_GSON ) );
+        org.mockito.Mockito.verifyNoInteractions( pm );
+    }
+
+    @Test
+    void checkVersionOrHashChecksTheHashEvenWhenNoVersionIsExpected() {
+        final PageManager pm = mock( PageManager.class );
+        final Page page = mock( Page.class );
+        when( pm.getPage( "Existing" ) ).thenReturn( page );
+        when( pm.getPureText( eq( "Existing" ), anyInt() ) ).thenReturn( "current text" );
+        assertTrue( McpToolUtils.checkVersionOrHash( pm, "Existing", -3,
+                McpToolUtils.computeContentHash( "other" ), McpToolUtils.SHARED_GSON ).isError() );
+    }
+
+    @Test
+    void checkVersionOrHashTreatsMissingTextAsEmptyForTheHash() {
+        final PageManager pm = mock( PageManager.class );
+        final Page page = mock( Page.class );
+        when( pm.getPage( "Existing" ) ).thenReturn( page );
+        when( pm.getPureText( eq( "Existing" ), anyInt() ) ).thenReturn( null );
+        assertNull( McpToolUtils.checkVersionOrHash( pm, "Existing", 0,
+                McpToolUtils.computeContentHash( "" ), McpToolUtils.SHARED_GSON ) );
+    }
+
+    @Test
+    void versionConflictReportsBothVersions() {
+        final PageManager pm = mock( PageManager.class );
+        final Page page = mock( Page.class );
+        when( page.getVersion() ).thenReturn( 5 );
+        when( pm.getPage( "Existing" ) ).thenReturn( page );
+        final String text = textOf( McpToolUtils.checkVersionOrHash( pm, "Existing", 4, null, McpToolUtils.SHARED_GSON ) );
+        assertTrue( text.contains( "version 5" ) && text.contains( "expectedVersion was 4" ), text );
+    }
+
+    @Test
+    void longAndDoubleBoundariesInStructuredNumbers() {
+        final com.google.gson.JsonObject data = new com.google.gson.JsonObject();
+        data.addProperty( "max", new java.math.BigDecimal( Long.MAX_VALUE ) );
+        data.addProperty( "beyond", new java.math.BigDecimal( Long.MAX_VALUE ).add( java.math.BigDecimal.ONE ) );
+        data.addProperty( "min", new java.math.BigDecimal( -Long.MAX_VALUE ) );
+        data.addProperty( "whole", new java.math.BigDecimal( "3.0" ) );
+        data.addProperty( "frac", new java.math.BigDecimal( "3.5" ) );
+        final Map< ?, ? > structured = ( Map< ?, ? > ) McpToolUtils.jsonResult( McpToolUtils.SHARED_GSON, data )
+                .structuredContent();
+        assertEquals( Long.MAX_VALUE, structured.get( "max" ) );
+        assertEquals( 9.223372036854775808E18, structured.get( "beyond" ) );
+        assertEquals( -Long.MAX_VALUE, structured.get( "min" ) );
+        assertEquals( 3L, structured.get( "whole" ) );
+        assertEquals( 3.5, structured.get( "frac" ) );
+    }
 }

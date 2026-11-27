@@ -183,4 +183,56 @@ class ListContentOpportunitiesToolTest {
 
         assertTrue( text( result ).contains( "\"firstSeen\":null" ) );
     }
+
+    @Test
+    void execute_booleanArgumentsAcceptBooleanOrTrueStringOnly() {
+        when( service.backlog( any(), any(), any(), anyInt(), anyBoolean() ) ).thenReturn( emptyView() );
+
+        tool.execute( Map.of( "include_snoozed", " TRUE " ) );
+        verify( service ).backlog( null, null, null, 20, true );
+        tool.execute( Map.of( "include_snoozed", "yes" ) );
+        tool.execute( Map.of( "include_snoozed", Boolean.FALSE ) );
+        verify( service, org.mockito.Mockito.times( 2 ) ).backlog( null, null, null, 20, false );
+    }
+
+    @Test
+    void execute_blankTypeAndSiteMeanUnsetAndGarbageLimitUsesTheDefault() {
+        when( service.backlog( any(), any(), any(), anyInt(), anyBoolean() ) ).thenReturn( emptyView() );
+
+        tool.execute( Map.of( "type", "  ", "site", "", "limit", "lots" ) );
+        verify( service ).backlog( null, null, null, 20, false );
+
+        tool.execute( Map.of( "type", " agent_gap ", "site", " s.example " ) );
+        verify( service ).backlog( "s.example", "agent_gap", null, 20, false );
+    }
+
+    @Test
+    void execute_rendersSnapshotDateSiteAndNullGeneratedAt() {
+        when( service.backlog( any(), any(), any(), anyInt(), anyBoolean() ) ).thenReturn(
+                new ContentOpportunityService.BacklogView( List.of(), List.of(), Set.of(), null, "s.example", "builtin" ) );
+
+        final com.google.gson.JsonObject out = com.google.gson.JsonParser.parseString( text( tool.execute( Map.of() ) ) )
+                .getAsJsonObject();
+
+        assertEquals( "s.example", out.get( "site" ).getAsString() );
+        assertEquals( "builtin", out.get( "ctrCurveSource" ).getAsString() );
+        assertTrue( !out.has( "generatedAt" ) || out.get( "generatedAt" ).isJsonNull() );
+        assertEquals( 0, out.get( "count" ).getAsInt() );
+    }
+
+    @Test
+    void execute_rendersAFirstSeenDateAndRoundTripsGeneratedAt() {
+        final Opportunity opp = new Opportunity( "agent_gap", "q", 1.0, Map.of(), "do it", null, true );
+        when( service.backlog( any(), any(), any(), anyInt(), anyBoolean() ) ).thenReturn(
+                new ContentOpportunityService.BacklogView( List.of( opp ), List.of(), Set.of(),
+                        LocalDate.of( 2026, 8, 1 ), "s", "builtin" ) );
+
+        final com.google.gson.JsonObject out = com.google.gson.JsonParser.parseString( text( tool.execute( Map.of() ) ) )
+                .getAsJsonObject();
+
+        assertEquals( "2026-08-01", out.get( "generatedAt" ).getAsString() );
+        final var o = out.getAsJsonArray( "opportunities" ).get( 0 ).getAsJsonObject();
+        assertTrue( !o.has( "firstSeen" ) || o.get( "firstSeen" ).isJsonNull() );
+        assertEquals( true, o.get( "calibrated" ).getAsBoolean() );
+    }
 }

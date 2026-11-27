@@ -132,4 +132,72 @@ class ListRetrievalQueriesToolTest {
         final long daysBack = java.time.Duration.between( cap.getValue().since(), Instant.now() ).toDays();
         assertEquals( 30, daysBack );
     }
+
+    private static QueryLogQuery queryFor( final Map< String, Object > args ) {
+        final QueryLogReader reader = mock( QueryLogReader.class );
+        when( reader.topQueries( any() ) ).thenReturn( List.of() );
+        new ListRetrievalQueriesTool( reader ).execute( args );
+        final ArgumentCaptor< QueryLogQuery > cap = ArgumentCaptor.forClass( QueryLogQuery.class );
+        verify( reader ).topQueries( cap.capture() );
+        return cap.getValue();
+    }
+
+    @Test
+    void defaultsAreFiftyQueriesWithOneOccurrenceAndNoFilters() {
+        final QueryLogQuery q = queryFor( Map.of() );
+        assertEquals( 50, q.limit() );
+        assertEquals( 1, q.minOccurrences() );
+        assertNull( q.actor() );
+        assertNull( q.surface() );
+        assertNull( q.maxAvgResultCount() );
+    }
+
+    @Test
+    void numericStringsAreParsedAndGarbageFallsBackToTheDefaults() {
+        final QueryLogQuery parsed = queryFor( Map.of( "limit", " 12 ", "min_occurrences", "3", "max_avg_results", "2" ) );
+        assertEquals( 12, parsed.limit() );
+        assertEquals( 3, parsed.minOccurrences() );
+        assertEquals( 2, parsed.maxAvgResultCount() );
+
+        final QueryLogQuery garbage = queryFor( Map.of( "limit", "lots", "min_occurrences", "x", "max_avg_results", "y" ) );
+        assertEquals( 50, garbage.limit() );
+        assertEquals( 1, garbage.minOccurrences() );
+        assertEquals( 0, garbage.maxAvgResultCount(), "a present-but-unparseable max_avg_results is 0, not unset" );
+    }
+
+    @Test
+    void sinceDaysSetsTheWindowStart() {
+        final Instant before = Instant.now();
+        final QueryLogQuery q = queryFor( Map.of( "since_days", 7 ) );
+        final long days = java.time.Duration.between( q.since(), before ).toDays();
+        assertTrue( days == 7 || days == 6, "window starts about 7 days ago, was " + days );
+    }
+
+    @Test
+    void aBlankActorOrSurfaceMeansNoFilterAndTheUnknownActorIsAccepted() {
+        assertNull( queryFor( Map.of( "actor", "  ", "surface", " " ) ).actor() );
+        assertEquals( ActorType.UNKNOWN, queryFor( Map.of( "actor", " unknown " ) ).actor() );
+    }
+
+    @Test
+    void renderedRowsCarryEveryAggregateAndATimestamp() {
+        final QueryLogReader reader = mock( QueryLogReader.class );
+        when( reader.topQueries( any() ) ).thenReturn( List.of(
+                new AggregatedQuery( "q1", 4, 1.5, 2, Instant.parse( "2026-11-20T05:00:00Z" ) ),
+                new AggregatedQuery( "q2", 1, 0.0, 1, null ) ) );
+
+        final com.google.gson.JsonObject out = com.google.gson.JsonParser.parseString(
+                ( ( io.modelcontextprotocol.spec.McpSchema.TextContent ) new ListRetrievalQueriesTool( reader )
+                        .execute( Map.of() ).content().get( 0 ) ).text() ).getAsJsonObject();
+
+        assertEquals( 2, out.get( "count" ).getAsInt() );
+        final var first = out.getAsJsonArray( "queries" ).get( 0 ).getAsJsonObject();
+        assertEquals( "q1", first.get( "query" ).getAsString() );
+        assertEquals( 4, first.get( "occurrences" ).getAsInt() );
+        assertEquals( 1.5, first.get( "avgResultCount" ).getAsDouble() );
+        assertEquals( 2, first.get( "zeroResultCount" ).getAsInt() );
+        assertEquals( "2026-11-20T05:00:00Z", first.get( "lastSeen" ).getAsString() );
+        final var second = out.getAsJsonArray( "queries" ).get( 1 ).getAsJsonObject();
+        assertTrue( !second.has( "lastSeen" ) || second.get( "lastSeen" ).isJsonNull() );
+    }
 }

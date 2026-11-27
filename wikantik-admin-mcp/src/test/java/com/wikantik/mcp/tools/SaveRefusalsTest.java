@@ -24,6 +24,7 @@ import com.wikantik.api.core.Page;
 import com.wikantik.api.exceptions.AccessRuleShapeException;
 import com.wikantik.api.exceptions.FrontmatterValidationException;
 import com.wikantik.api.frontmatter.schema.FieldViolation;
+import com.wikantik.api.frontmatter.schema.FrontmatterWarningSink;
 import com.wikantik.api.frontmatter.schema.Severity;
 import com.wikantik.api.managers.PageManager;
 import com.wikantik.api.pages.PageSaveHelper;
@@ -137,5 +138,33 @@ class SaveRefusalsTest {
         assertEquals( "{\"updated\":false," + PARSE_TAIL + "}", json( SaveRefusals.parseError( e, "updated" ) ) );
         assertEquals( List.of( "created", "error", "hint" ), List.copyOf( SaveRefusals.parseError(
             new com.wikantik.api.frontmatter.FrontmatterParseException( "m", 0, 0 ), "created" ).keySet() ) );
+    }
+
+    @Test
+    void aMathRefusalDropsTheStaleMathWarningsAndLeavesFrontmatterOnesAlone() {
+        com.wikantik.api.content.ContentWarningSink.put( List.of( CV ) );
+        FrontmatterWarningSink.put( "P", List.of( FV ) );
+        try {
+            SaveRefusals.refusalFor( new ContentValidationException( List.of( CV ) ), "created" );
+            assertTrue( com.wikantik.api.content.ContentWarningSink.drain().isEmpty() );
+            assertEquals( List.of( FV ), FrontmatterWarningSink.drain( "P" ) );
+        } finally {
+            FrontmatterWarningSink.clear();
+            com.wikantik.api.content.ContentWarningSink.clear();
+        }
+    }
+
+    @Test
+    void aFrontmatterRefusalDropsTheStaleFrontmatterWarningsAndLeavesMathOnesAlone() {
+        com.wikantik.api.content.ContentWarningSink.put( List.of( CV ) );
+        FrontmatterWarningSink.put( "P", List.of( FV ) );
+        try {
+            SaveRefusals.refusalFor( new FrontmatterValidationException( List.of( FV ) ), "created" );
+            assertTrue( FrontmatterWarningSink.drain( "P" ).isEmpty() );
+            assertEquals( List.of( CV ), com.wikantik.api.content.ContentWarningSink.drain() );
+        } finally {
+            FrontmatterWarningSink.clear();
+            com.wikantik.api.content.ContentWarningSink.clear();
+        }
     }
 }

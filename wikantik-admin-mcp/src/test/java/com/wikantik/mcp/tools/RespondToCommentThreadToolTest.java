@@ -284,4 +284,41 @@ class RespondToCommentThreadToolTest {
         assertTrue( d.contains( "reason" ), d );
         assertEquals( "respond_to_comment_thread", tool.name() );
     }
+
+    @Test
+    void aMissingActionIsRefusedAndNothingIsWritten() {
+        assertRefusal( call( Map.of( "threadId", threadId.toString(), "body", "x" ) ),
+                "action must be reply, resolve or dismiss" );
+        verify( store, org.mockito.Mockito.never() ).respondAsAgent( any(), any(), any(), any(), any() );
+    }
+
+    @Test
+    void everyActionIsAcceptedInAnyCaseWithSurroundingWhitespaceAndMapsToItsEnum() {
+        when( store.respondAsAgent( any(), any(), any(), any(), any() ) )
+                .thenReturn( new AgentResponse( AgentOutcome.OK, saved( threadId, UUID.randomUUID() ), "open" ) );
+        final String[] words = { " Reply ", "RESOLVE", "dismiss " };
+        final AgentAction[] actions = { AgentAction.REPLY, AgentAction.RESOLVE, AgentAction.DISMISS };
+        for ( int i = 0; i < words.length; i++ ) {
+            assertTrue( !Boolean.TRUE.equals( call( Map.of( "threadId", " " + threadId + " ", "action", words[ i ],
+                    "body", "x" ) ).isError() ), words[ i ] );
+            verify( store ).respondAsAgent( eq( threadId ), eq( actions[ i ] ), any(), any(), any() );
+        }
+    }
+
+    @Test
+    void aVeryLongNonUuidThreadIdIsRefusedNotThrown() {
+        assertRefusal( call( Map.of( "threadId", "x".repeat( 150 ), "action", "reply", "body", "x" ) ),
+                "threadId must be a thread id from list_comment_threads" );
+        assertRefusal( call( Map.of( "threadId", "y".repeat( 100 ) + "\n\u0007", "action", "reply", "body", "x" ) ),
+                "threadId must be a thread id from list_comment_threads" );
+        verifyNoInteractions( store );
+    }
+
+    @Test
+    void aThreadWhosePageNoLongerResolvesIsRefusedBeforeAnythingIsWritten() {
+        when( index.resolveSlugFromCanonicalId( "c1" ) ).thenReturn( Optional.empty() );
+        assertRefusal( call( Map.of( "threadId", threadId.toString(), "action", "reply", "body", "x" ) ),
+                "No such comment thread, or its page no longer exists" );
+        verify( store, org.mockito.Mockito.never() ).respondAsAgent( any(), any(), any(), any(), any() );
+    }
 }

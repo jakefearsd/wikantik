@@ -117,4 +117,38 @@ class ReadPageToolTest {
         assertTrue( json.contains( "{{wiki:articles|round" ), json );
         assertTrue( json.contains( "{{wiki:articles}}" ), json );
     }
+
+    @Test
+    void aBlankSlugIsRefusedWithoutTouchingThePageManager() {
+        final McpSchema.CallToolResult result = tool.execute( Map.of( "slug", "  " ) );
+        assertTrue( result.isError() );
+        verifyNoInteractions( pageManager );
+    }
+
+    @Test
+    void aPageWithNoTextReadsAsEmptyWithTheEmptyHash() {
+        final Page hollow = pageStub( 3 );
+        when( pageManager.getPageWithoutMetadata( eq( "Hollow" ), anyInt() ) ).thenReturn( hollow );
+        when( pageManager.getPureText( eq( "Hollow" ), anyInt() ) ).thenReturn( null );
+
+        final var json = com.google.gson.JsonParser.parseString( text( tool.execute( Map.of( "slug", "Hollow" ) ) ) )
+            .getAsJsonObject();
+
+        assertEquals( "", json.get( "content" ).getAsString() );
+        assertEquals( McpToolUtils.computeContentHash( "" ), json.get( "contentHash" ).getAsString() );
+        assertEquals( 3, json.get( "version" ).getAsInt() );
+    }
+
+    @Test
+    void theContentHashIsTheOneUpdatePageExpects() {
+        final Page stub = pageStub( 1 );
+        when( pageManager.getPageWithoutMetadata( eq( "P" ), anyInt() ) ).thenReturn( stub );
+        when( pageManager.getPureText( eq( "P" ), anyInt() ) ).thenReturn( "body text" );
+
+        final var json = com.google.gson.JsonParser.parseString( text( tool.execute( Map.of( "slug", "P" ) ) ) )
+            .getAsJsonObject();
+
+        assertEquals( McpToolUtils.computeContentHash( "body text" ), json.get( "contentHash" ).getAsString() );
+        assertEquals( "1970-01-01T00:00:00Z", json.get( "lastModified" ).getAsString() );
+    }
 }

@@ -20,6 +20,7 @@ package com.wikantik.mcp.tools;
 
 import com.wikantik.TestEngine;
 import com.wikantik.mcp.tools.PageCheckResult.Severity;
+import com.wikantik.api.core.Page;
 import com.wikantik.api.managers.PageManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -86,23 +87,6 @@ class PageChecksTest {
             final var results = check.check( ctx( Map.of( "summary", "   " ) ) );
             assertEquals( 1, results.size() );
             assertEquals( "missing_summary", results.get( 0 ).issue() );
-        }
-
-        @Test
-        void flagsShortSummaryWhenBoundsEnabled() {
-            final PageCheck check = new PageChecks.SummaryCheck( true );
-            final var results = check.check( ctx( Map.of( "summary", "Too short" ) ) );
-            assertEquals( 1, results.size() );
-            assertEquals( "summary_too_short", results.get( 0 ).issue() );
-        }
-
-        @Test
-        void flagsLongSummaryWhenBoundsEnabled() {
-            final PageCheck check = new PageChecks.SummaryCheck( true );
-            final String longSummary = "A".repeat( 161 );
-            final var results = check.check( ctx( Map.of( "summary", longSummary ) ) );
-            assertEquals( 1, results.size() );
-            assertEquals( "summary_too_long", results.get( 0 ).issue() );
         }
 
         @Test
@@ -411,5 +395,119 @@ class PageChecksTest {
             final var results = check.check( ctx );
             assertTrue( results.isEmpty() );
         }
+    }
+
+    // ========== boundary pins ==========
+
+    private static String issueOf( final java.util.List< PageCheckResult > r ) {
+        return r.isEmpty() ? null : r.get( 0 ).issue();
+    }
+
+    @Test
+    void summaryLengthBoundariesAreFortyNineFiftyOneSixtyAndOneSixtyOne() {
+        final PageCheck check = new PageChecks.SummaryCheck( true );
+        final int[] lengths = { 49, 50, 160, 161 };
+        final String[] expected = { "summary_too_short", null, null, "summary_too_long" };
+        for ( int i = 0; i < lengths.length; i++ ) {
+            assertEquals( expected[ i ], issueOf( check.check( ctx( Map.of( "summary", "s".repeat( lengths[ i ] ) ) ) ) ),
+                    "length " + lengths[ i ] );
+        }
+    }
+
+    @Test
+    void summaryLengthIsMeasuredAfterStrippingWhitespace() {
+        final PageCheck check = new PageChecks.SummaryCheck( true );
+        assertNull( issueOf( check.check( ctx( Map.of( "summary", "  " + "s".repeat( 50 ) + "  " ) ) ) ) );
+    }
+
+    @Test
+    void summarySpecificityNeedsAtLeastSixWords() {
+        final var c = new PageChecks.SummarySpecificityCheck();
+        assertEquals( "summary_low_specificity",
+            issueOf( c.check( ctx( "P", Map.of( "title", "T", "summary", "five words are not enough" ), "" ) ) ) );
+        assertNull( issueOf( c.check( ctx( "P", Map.of( "title", "T", "summary", "exactly six words are just enough" ), "" ) ) ) );
+        assertEquals( "summary_missing_for_retrieval", issueOf( c.check( ctx( "P", Map.of( "summary", "   " ), "" ) ) ) );
+        assertEquals( "summary_restates_title",
+            issueOf( c.check( ctx( "P", Map.of( "title", "Hybrid Retrieval", "summary", "hybrid retrieval" ), "" ) ) ) );
+    }
+
+    @Test
+    void aHubWhoseRelatedIsAnEmptyListOrNotAListIsFlagged() {
+        final var check = new PageChecks.HubRelatedCheck( false );
+        assertEquals( "hub_empty_related", issueOf( check.check( ctx( Map.of( "type", "hub", "related", List.of() ) ) ) ) );
+        assertEquals( "hub_empty_related", issueOf( check.check( ctx( Map.of( "type", "hub", "related", "PageA" ) ) ) ) );
+    }
+
+    @Test
+    void hubRelatedExistenceIsNotCheckedWithoutAPageManager() {
+        final var check = new PageChecks.HubRelatedCheck( true );
+        final var noPm = new PageCheckContext( "Hub", Map.of( "type", "hub", "related", List.of( "Nowhere" ) ), "", null, null );
+        assertTrue( check.check( noPm ).isEmpty() );
+    }
+
+    @Test
+    void headingsInsideTildeFencesAreIgnoredAndAFenceClosesAgain() {
+        final var c = new PageChecks.HeadingQualityCheck();
+        assertTrue( c.check( ctx( "P", Map.of(), "## Real Section\n~~~\n# Overview\n~~~\nbody" ) ).isEmpty() );
+        final var afterFence = c.check( ctx( "P", Map.of(), "## Real\n```\n# x\n```\n## Summary\ntext" ) );
+        assertEquals( "generic_heading", issueOf( afterFence ), "a heading after the closed fence counts again" );
+    }
+
+    @Test
+    void aBlankBodyHasNoHeadings() {
+        final var c = new PageChecks.HeadingQualityCheck();
+        assertEquals( "no_headings", issueOf( c.check( ctx( "P", Map.of(), "   \n " ) ) ) );
+    }
+
+    @Test
+    void aRepeatedGenericHeadingIsReportedOnce() {
+        final var c = new PageChecks.HeadingQualityCheck();
+        assertEquals( 1, c.check( ctx( "P", Map.of(), "## Overview\na\n## overview\nb" ) ).size() );
+    }
+
+    @Test
+    void titleAndSummaryCheckersTreatBlankAsMissing() {
+        assertEquals( "title_missing", issueOf( new PageChecks.TitleSpecificityCheck().check(
+            ctx( "P", Map.of( "title", "  " ), "" ) ) ) );
+    }
+
+    private static Page pageModifiedDaysAgo( final long days, final Instant now ) {
+        final Page page = org.mockito.Mockito.mock( Page.class );
+        org.mockito.Mockito.when( page.getLastModified() ).thenReturn(
+            java.util.Date.from( now.minus( days, ChronoUnit.DAYS ).minusSeconds( 60 ) ) );
+        return page;
+    }
+
+    @Test
+    void stalenessFiresStrictlyBeyondTheWindowAndTheDraftWindow() {
+        final Instant now = Instant.parse( "2026-11-26T12:00:00Z" );
+        final var check = new PageChecks.StalenessCheck( 90, 30, now );
+        final Object[][] cases = {
+            { "active", 90L, null }, { "active", 91L, "stale" },
+            { "draft", 30L, null }, { "draft", 31L, "stalled_draft" },
+            { null, 90L, null }, { null, 91L, "stale" },
+        };
+        for ( final Object[] c : cases ) {
+            final Map< String, Object > meta = c[ 0 ] == null ? Map.of() : Map.of( "status", c[ 0 ] );
+            final var ctx = new PageCheckContext( "P", meta, "", pageModifiedDaysAgo( ( Long ) c[ 1 ], now ), null );
+            assertEquals( c[ 2 ], issueOf( check.check( ctx ) ), c[ 0 ] + " / " + c[ 1 ] + " days" );
+        }
+    }
+
+    @Test
+    void aDraftIsOnlyJudgedByTheDraftWindowNotTheGeneralOne() {
+        final Instant now = Instant.parse( "2026-11-26T12:00:00Z" );
+        final var check = new PageChecks.StalenessCheck( 10, 100, now );
+        final var ctx = new PageCheckContext( "P", Map.of( "status", "draft" ), "", pageModifiedDaysAgo( 50, now ), null );
+        assertTrue( check.check( ctx ).isEmpty(), "50 days is past the general window but inside the draft window" );
+    }
+
+    @Test
+    void stalenessIsSkippedWithoutAPageOrALastModifiedDate() {
+        final Instant now = Instant.parse( "2026-11-26T12:00:00Z" );
+        final var check = new PageChecks.StalenessCheck( 1, 1, now );
+        assertTrue( check.check( new PageCheckContext( "P", Map.of(), "", null, null ) ).isEmpty() );
+        final Page undated = org.mockito.Mockito.mock( Page.class );
+        assertTrue( check.check( new PageCheckContext( "P", Map.of(), "", undated, null ) ).isEmpty() );
     }
 }

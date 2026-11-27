@@ -302,4 +302,26 @@ class KeyOnlyMcpAccessFilterTest {
         assertEquals( 403, run( "POST", "tok2", "s-added", null ), "and the session belongs to the key that opened it" );
         assertEquals( 200, run( "POST", "tok1", "s-added", null ) );
     }
+
+    @Test
+    void theSessionHeaderIsStillWrittenToTheRealResponse() throws Exception {
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        when( resp.getWriter() ).thenReturn( new PrintWriter( new StringWriter() ) );
+        final FilterChain transport = ( rq, rs ) -> {
+            ( ( HttpServletResponse ) rs ).setHeader( KeyOnlyMcpAccessFilter.SESSION_HEADER, "s-set" );
+            ( ( HttpServletResponse ) rs ).addHeader( "X-Added", "v" );
+        };
+        filter.doFilter( request( "POST", "tok1", null ), resp, transport );
+        verify( resp ).setHeader( KeyOnlyMcpAccessFilter.SESSION_HEADER, "s-set" );
+        verify( resp ).addHeader( "X-Added", "v" );
+    }
+
+    @Test
+    void attributesOtherThanTheKeyRecordPassThroughTheForwardedRequest() {
+        final HttpServletRequest req = request( "POST", "tok1", null );
+        req.setAttribute( "custom", "value" );
+        final HttpServletRequest forwarded = assertInstanceOf( McpAccessFilter.Outcome.Allowed.class,
+            filter.authorize( req ) ).effectiveReq();
+        assertEquals( "value", forwarded.getAttribute( "custom" ) );
+    }
 }

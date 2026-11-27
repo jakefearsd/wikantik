@@ -171,4 +171,30 @@ class McpServerInitializerTest {
             verify( ctx, never() ).addFilter( anyString(), any( Filter.class ) );
         }
     }
+
+    @Test
+    void toolNamesAreExtractedByPrefixAndUnderscoreOnly() {
+        final java.util.Set< String > names = McpServerInitializer.extractToolLikeNames(
+            "Use read_page, then update_page. Not get, nor some_thing, but list_pages and retrieve_context; "
+            + "PING_ONLY is upper." );
+        assertEquals( java.util.Set.of( "read_page", "update_page", "list_pages", "retrieve_context" ), names );
+    }
+
+    @Test
+    void driftReportsBothDirectionsAndIsEmptyOnlyWhenInSync() {
+        final McpServerInitializer.ToolNameDrift inSync = McpServerInitializer.computeToolNameDrift(
+            "read_page and update_page", java.util.Set.of( "read_page", "update_page" ) );
+        assertEquals( true, inSync.isEmpty() );
+
+        final McpServerInitializer.ToolNameDrift drift = McpServerInitializer.computeToolNameDrift(
+            "read_page and get_ghost", java.util.Set.of( "read_page", "update_page" ) );
+        assertEquals( java.util.Set.of( "get_ghost" ), drift.mentionedButNotRegistered() );
+        assertEquals( java.util.Set.of( "update_page" ), drift.registeredButNotMentioned() );
+        assertEquals( false, drift.isEmpty() );
+
+        assertEquals( false, McpServerInitializer.computeToolNameDrift( "read_page", java.util.Set.of( "read_page", "x_y" ) )
+            .isEmpty(), "registered-but-unmentioned alone is drift" );
+        assertEquals( false, McpServerInitializer.computeToolNameDrift( "read_page get_ghost", java.util.Set.of( "read_page" ) )
+            .isEmpty(), "mentioned-but-unregistered alone is drift" );
+    }
 }

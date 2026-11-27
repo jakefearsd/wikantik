@@ -99,4 +99,44 @@ class ListReaderEngagementToolTest {
         final McpSchema.CallToolResult r = tool.execute( Map.of() );
         assertTrue( r.isError() );
     }
+
+    @Test
+    void numericStringArgumentsAreParsedGarbageFallsBackAndTheBoundsAreInclusive() {
+        when( report.pages( anyString(), anyInt(), anyInt(), isNull() ) ).thenReturn( List.of() );
+
+        tool.execute( Map.of( "days", " 7 ", "limit", "10" ) );
+        verify( report ).pages( "wiki.example.com", 7, 10, null );
+
+        tool.execute( Map.of( "days", "soon", "limit", "many" ) );
+        verify( report ).pages( "wiki.example.com", 28, 25, null );
+
+        tool.execute( Map.of( "days", 0, "limit", 0 ) );
+        verify( report ).pages( "wiki.example.com", 1, 1, null );
+
+        tool.execute( Map.of( "days", 90, "limit", 200 ) );
+        verify( report ).pages( "wiki.example.com", 90, 200, null );
+    }
+
+    @Test
+    void aBlankClusterMeansNoClusterFilterAndAClusterIsStripped() {
+        when( report.pages( anyString(), anyInt(), anyInt(), org.mockito.ArgumentMatchers.any() ) ).thenReturn( List.of() );
+
+        tool.execute( Map.of( "cluster", "   " ) );
+        verify( report ).pages( "wiki.example.com", 28, 25, null );
+
+        tool.execute( Map.of( "cluster", " agents " ) );
+        verify( report ).pages( "wiki.example.com", 28, 25, "agents" );
+    }
+
+    @Test
+    void anUnknownRefreshTimeIsReportedAsNullAndTheDaysAreEchoed() {
+        when( report.pages( anyString(), anyInt(), anyInt(), isNull() ) ).thenReturn( List.of() );
+        when( report.refreshedAt( "wiki.example.com" ) ).thenReturn( null );
+
+        final JsonObject b = JsonParser.parseString( text( tool.execute( Map.of( "days", 14 ) ) ) ).getAsJsonObject();
+
+        assertEquals( 14, b.get( "days" ).getAsInt() );
+        assertEquals( 0, b.get( "count" ).getAsInt() );
+        assertTrue( b.get( "refreshedAt" ).isJsonNull() || !b.has( "refreshedAt" ) );
+    }
 }

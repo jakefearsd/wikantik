@@ -101,6 +101,20 @@ class McpAuditTest {
         assertTrue( message.contains( "author=unknown" ), message );
     }
 
+    @Test
+    void logWriteTreatsABlankAuthorAsUnknownAndKeepsARealOne() {
+        final CapturingAppender appender = CapturingAppender.attach( "SecurityLog" );
+        try {
+            McpAudit.logWrite( "t", "created", "P", "   " );
+            McpAudit.logWrite( "t", "created", "P", "carol" );
+        } finally {
+            appender.detach();
+        }
+        assertEquals( 2, appender.events.size() );
+        assertTrue( appender.events.get( 0 ).getMessage().getFormattedMessage().endsWith( "author=unknown" ) );
+        assertTrue( appender.events.get( 1 ).getMessage().getFormattedMessage().endsWith( "author=carol" ) );
+    }
+
     /**
      * Minimal log4j appender that captures events in memory. Attached programmatically
      * to a named logger for the duration of a test and detached in finally.

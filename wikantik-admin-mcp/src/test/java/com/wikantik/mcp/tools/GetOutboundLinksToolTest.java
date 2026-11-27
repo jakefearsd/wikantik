@@ -85,4 +85,15 @@ class GetOutboundLinksToolTest {
         assertEquals( "get_outbound_links", def.name() );
         assertTrue( def.annotations().readOnlyHint() );
     }
+
+    @Test
+    @SuppressWarnings( "unchecked" )
+    void linksAreReturnedInAlphabeticalOrder() throws Exception {
+        refMgr.addReferences( "Src", new java.util.LinkedHashSet<>( List.of( "Zed", "Mid", "Alpha" ) ) );
+
+        final Map< String, Object > data = gson.fromJson( ( ( McpSchema.TextContent ) tool.execute(
+                Map.of( "slug", "Src" ) ).content().get( 0 ) ).text(), Map.class );
+
+        assertEquals( List.of( "Alpha", "Mid", "Zed" ), data.get( "links" ) );
+    }
 }

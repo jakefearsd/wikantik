@@ -296,4 +296,18 @@ class DeletePagesToolTest {
         assertTrue( entry( result, 1 ).get( "deleted" ).getAsBoolean() );
         assertSummary( result, 2, 1, 0, 1 );
     }
+
+    @Test
+    void aNullSlugEntryIsAFailureNotACrashAndTheRestOfTheBatchStillRuns() throws Exception {
+        existingPage( "Real" );
+        final java.util.ArrayList< Object > slugs = new java.util.ArrayList<>();
+        slugs.add( null );
+        slugs.add( "Real" );
+
+        final McpSchema.CallToolResult result = tool.execute( Map.of( "slugs", slugs, "confirm", true ) );
+
+        assertSummary( result, 2, 1, 0, 1 );
+        verify( pageManager ).deletePage( "Real" );
+        verify( pageManager, never() ).deletePage( ( String ) null );
+    }
 }

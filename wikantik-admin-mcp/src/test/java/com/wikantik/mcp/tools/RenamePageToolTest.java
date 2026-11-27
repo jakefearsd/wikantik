@@ -109,4 +109,133 @@ class RenamePageToolTest {
         assertEquals( "rename_page", def.name() );
         assertTrue( def.annotations().destructiveHint() );
     }
+
+    private static String textOf( final McpSchema.CallToolResult r ) {
+        return ( ( McpSchema.TextContent ) r.content().get( 0 ) ).text();
+    }
+
+    private RenamePageTool toolWith( final PageRenamer renamer, final SystemPageRegistry registry ) {
+        return new RenamePageTool( engine, engine.getManager( PageManager.class ), renamer, registry );
+    }
+
+    private static Map< String, Object > args( final String from, final String to, final boolean confirm ) {
+        final Map< String, Object > a = new HashMap<>();
+        a.put( "oldName", from );
+        a.put( "newName", to );
+        a.put( "confirm", confirm );
+        return a;
+    }
+
+    @Test
+    void anInvalidOldNameIsRefusedBeforeAnythingIsRenamed() throws Exception {
+        final PageRenamer renamer = org.mockito.Mockito.mock( PageRenamer.class );
+        final McpSchema.CallToolResult result = toolWith( renamer, null ).execute( args( "  ", "New", true ) );
+
+        assertTrue( result.isError() );
+        assertTrue( textOf( result ).contains( "oldName" ), textOf( result ) );
+        org.mockito.Mockito.verifyNoInteractions( renamer );
+    }
+
+    @Test
+    void anInvalidNewNameIsRefusedBeforeAnythingIsRenamed() throws Exception {
+        engine.saveText( "Source", "x" );
+        final PageRenamer renamer = org.mockito.Mockito.mock( PageRenamer.class );
+        final McpSchema.CallToolResult result = toolWith( renamer, null ).execute( args( "Source", "  ", true ) );
+
+        assertTrue( result.isError() );
+        assertTrue( textOf( result ).contains( "newName" ), textOf( result ) );
+        org.mockito.Mockito.verifyNoInteractions( renamer );
+    }
+
+    @Test
+    void renamingASystemPageIsRefusedAndTheRenamerIsNeverCalled() throws Exception {
+        engine.saveText( "SysPage", "x" );
+        final SystemPageRegistry registry = org.mockito.Mockito.mock( SystemPageRegistry.class );
+        org.mockito.Mockito.when( registry.isSystemPage( "SysPage" ) ).thenReturn( true );
+        final PageRenamer renamer = org.mockito.Mockito.mock( PageRenamer.class );
+
+        final McpSchema.CallToolResult result = toolWith( renamer, registry ).execute( args( "SysPage", "Other", true ) );
+
+        assertTrue( result.isError() );
+        assertEquals( "Cannot rename system page: SysPage", gson.fromJson( textOf( result ), Map.class ).get( "error" ) );
+        org.mockito.Mockito.verifyNoInteractions( renamer );
+    }
+
+    @Test
+    void renamingOntoASystemPageNameIsRefusedAndTheRenamerIsNeverCalled() throws Exception {
+        engine.saveText( "Plain", "x" );
+        final SystemPageRegistry registry = org.mockito.Mockito.mock( SystemPageRegistry.class );
+        org.mockito.Mockito.when( registry.isSystemPage( "SysTarget" ) ).thenReturn( true );
+        final PageRenamer renamer = org.mockito.Mockito.mock( PageRenamer.class );
+
+        final McpSchema.CallToolResult result = toolWith( renamer, registry ).execute( args( "Plain", "SysTarget", true ) );
+
+        assertTrue( result.isError() );
+        assertEquals( "Cannot rename to system page name: SysTarget",
+            gson.fromJson( textOf( result ), Map.class ).get( "error" ) );
+        org.mockito.Mockito.verifyNoInteractions( renamer );
+    }
+
+    @Test
+    void linkUpdatingDefaultsToOnAndCanBeSwitchedOff() throws Exception {
+        engine.saveText( "LinkSrc", "x" );
+        final PageRenamer renamer = org.mockito.Mockito.mock( PageRenamer.class );
+        org.mockito.Mockito.when( renamer.renamePage( org.mockito.ArgumentMatchers.any(),
+            org.mockito.ArgumentMatchers.eq( "LinkSrc" ), org.mockito.ArgumentMatchers.eq( "LinkDst" ),
+            org.mockito.ArgumentMatchers.anyBoolean() ) ).thenReturn( "LinkDst" );
+        final RenamePageTool t = toolWith( renamer, null );
+
+        final Map< ?, ? > defaulted = gson.fromJson( textOf( t.execute( args( "LinkSrc", "LinkDst", true ) ) ), Map.class );
+        final Map< String, Object > off = args( "LinkSrc", "LinkDst", true );
+        off.put( "updateLinks", false );
+        final Map< ?, ? > disabled = gson.fromJson( textOf( t.execute( off ) ), Map.class );
+
+        assertEquals( true, defaulted.get( "linksUpdated" ) );
+        assertEquals( false, disabled.get( "linksUpdated" ) );
+        org.mockito.Mockito.verify( renamer ).renamePage( org.mockito.ArgumentMatchers.any(), eq1( "LinkSrc" ),
+            eq1( "LinkDst" ), org.mockito.ArgumentMatchers.eq( true ) );
+        org.mockito.Mockito.verify( renamer ).renamePage( org.mockito.ArgumentMatchers.any(), eq1( "LinkSrc" ),
+            eq1( "LinkDst" ), org.mockito.ArgumentMatchers.eq( false ) );
+    }
+
+    private static String eq1( final String v ) {
+        return org.mockito.ArgumentMatchers.eq( v );
+    }
+
+    @Test
+    void theResultReportsTheNameTheRenamerActuallyUsed() throws Exception {
+        engine.saveText( "Raw", "x" );
+        final PageRenamer renamer = org.mockito.Mockito.mock( PageRenamer.class );
+        org.mockito.Mockito.when( renamer.renamePage( org.mockito.ArgumentMatchers.any(), eq1( "Raw" ), eq1( "Cooked" ),
+            org.mockito.ArgumentMatchers.anyBoolean() ) ).thenReturn( "Cooked2" );
+
+        final Map< ?, ? > data = gson.fromJson( textOf( toolWith( renamer, null ).execute( args( "Raw", "Cooked", true ) ) ),
+            Map.class );
+
+        assertEquals( "Cooked", data.get( "newName" ) );
+        assertEquals( "Cooked2", data.get( "finalName" ) );
+    }
+
+    @Test
+    void aRenamerRefusalIsReturnedAsAnErrorResultWithItsMessage() throws Exception {
+        engine.saveText( "Src2", "x" );
+        final PageRenamer renamer = org.mockito.Mockito.mock( PageRenamer.class );
+        org.mockito.Mockito.when( renamer.renamePage( org.mockito.ArgumentMatchers.any(), eq1( "Src2" ), eq1( "Taken" ),
+            org.mockito.ArgumentMatchers.anyBoolean() ) )
+            .thenThrow( new com.wikantik.api.exceptions.WikiException( "Page already exists" ) {
+            } );
+
+        final McpSchema.CallToolResult result = toolWith( renamer, null ).execute( args( "Src2", "Taken", true ) );
+
+        assertTrue( result.isError() );
+        assertEquals( "Page already exists", gson.fromJson( textOf( result ), Map.class ).get( "error" ) );
+    }
+
+    @Test
+    void aSuccessfulRenameIsAuditedWithBothNamesAndNoAuthor() throws Exception {
+        engine.saveText( "AuditOld", "x" );
+        final java.util.List< String > lines = SecurityLogCapture.during( () -> tool.execute( args( "AuditOld", "AuditNew", true ) ) );
+        assertEquals( java.util.List.of( "MCP_WRITE tool=rename_page action=renamed target=AuditOld->AuditNew author=unknown" ),
+            lines );
+    }
 }

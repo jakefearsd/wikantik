@@ -18,6 +18,7 @@
  */
 package com.wikantik.mcp.tools;
 
+import static org.mockito.ArgumentMatchers.any;
 import com.wikantik.insights.runtime.ContentOpportunityService;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.junit.jupiter.api.BeforeEach;
@@ -188,5 +189,44 @@ class SnoozeOpportunityToolTest {
 
         assertTrue( result.isError() );
         assertTrue( text( result ).contains( "Failed to record the snooze" ) );
+    }
+
+    @org.junit.jupiter.api.Test
+    void execute_acceptsExactlyTheBoundaryDaysAndRefusesOneBeyond() {
+        when( service.snooze( anyString(), anyString(), anyInt(), anyString(), any() ) )
+                .thenReturn( new ContentOpportunityService.SnoozeResult( LocalDate.of( 2026, 1, 1 ), false ) );
+        for ( final int ok : new int[] { 1, 365 } ) {
+            assertFalse( tool.execute( Map.of( "type", "t", "target", "x", "days", ok, "reason", "r" ) ).isError(),
+                    "days=" + ok );
+        }
+        for ( final int bad : new int[] { 0, -1, 366 } ) {
+            assertTrue( tool.execute( Map.of( "type", "t", "target", "x", "days", bad, "reason", "r" ) ).isError(),
+                    "days=" + bad );
+        }
+    }
+
+    @org.junit.jupiter.api.Test
+    void execute_aMissingTypeOrTargetIsRefusedIndividually() {
+        assertTrue( tool.execute( Map.of( "target", "x", "days", 3, "reason", "r" ) ).isError() );
+        assertTrue( tool.execute( Map.of( "type", "t", "days", 3, "reason", "r" ) ).isError() );
+        verifyNoInteractions( service );
+    }
+
+    @org.junit.jupiter.api.Test
+    void execute_aMissingDaysValueIsNotAWholeNumber() {
+        final McpSchema.CallToolResult result = tool.execute( Map.of( "type", "t", "target", "x", "reason", "r" ) );
+        assertTrue( result.isError() );
+        assertTrue( text( result ).contains( "must be a whole number" ) );
+    }
+
+    @org.junit.jupiter.api.Test
+    void execute_typeTargetAndReasonAreStrippedBeforeUse() {
+        when( service.snooze( anyString(), anyString(), anyInt(), anyString(), any() ) )
+                .thenReturn( new ContentOpportunityService.SnoozeResult( LocalDate.of( 2026, 1, 1 ), true ) );
+
+        final String json = text( tool.execute( Map.of( "type", " t ", "target", " x ", "days", 2, "reason", " r " ) ) );
+
+        verify( service ).snooze( eq( "t" ), eq( "x" ), eq( 2 ), eq( "r" ), any() );
+        assertTrue( json.contains( "\"previouslySnoozed\":true" ), json );
     }
 }

@@ -118,4 +118,15 @@ class DiffPageToolTest {
     void testToolName() {
         assertEquals( "diff_page", tool.name() );
     }
+
+    @Test
+    void stripHtmlHandlesNullEmptyBlocksQuotesAndBlankLineRuns() {
+        assertEquals( "", DiffPageTool.stripHtml( null ) );
+        assertEquals( "", DiffPageTool.stripHtml( "" ) );
+        assertEquals( "one\ntwo\nthree\nfour", DiffPageTool.stripHtml( "<p>one</p><div>two</div><tr>three</tr><li>four</li>" ) );
+        assertEquals( "a\nb", DiffPageTool.stripHtml( "a<BR>b".replace( "BR", "br" ) ) );
+        assertEquals( "say \"hi\" it's > 1", DiffPageTool.stripHtml( "say &quot;hi&quot; it&#39;s &gt; 1" ) );
+        assertEquals( "a\n\nb", DiffPageTool.stripHtml( "a<p></p><p></p><p></p>b" ), "three or more newlines collapse to two" );
+        assertEquals( "x", DiffPageTool.stripHtml( "  <p>x</p>  " ), "result is stripped" );
+    }
 }

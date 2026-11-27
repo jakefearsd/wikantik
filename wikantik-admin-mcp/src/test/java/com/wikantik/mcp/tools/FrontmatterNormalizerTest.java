@@ -164,4 +164,38 @@ class FrontmatterNormalizerTest {
         assertEquals( "Woodworking Joinery: Structural Mechanics", parsed.metadata().get( "title" ) );
         assertEquals( n.body(), parsed.body() );
     }
+
+    @Test
+    void normalize_injectedCanonicalIdKeepsEveryOtherFieldInOrder() throws Exception {
+        final FrontmatterNormalizer.Normalized n = FrontmatterNormalizer.normalize(
+                "---\ntitle: T\ntype: article\ntags: [a, b]\n---\nbody", null, "01ID" );
+        assertEquals( "canonical_id", n.metadata().keySet().iterator().next() );
+        assertEquals( 4, n.metadata().size(), n.metadata().toString() );
+        assertEquals( "article", n.metadata().get( "type" ) );
+        assertEquals( "T", n.metadata().get( "title" ) );
+        assertEquals( java.util.List.of( "a", "b" ), n.metadata().get( "tags" ) );
+    }
+
+    @Test
+    void normalize_aBlankAgentCanonicalIdDoesNotDisplaceTheExistingOne() throws Exception {
+        final FrontmatterNormalizer.Normalized n = FrontmatterNormalizer.normalize(
+                "---\ncanonical_id: \"  \"\ntitle: T\n---\nbody", null, "01ID" );
+        assertEquals( "01ID", n.metadata().get( "canonical_id" ) );
+        assertEquals( "T", n.metadata().get( "title" ) );
+    }
+
+    @Test
+    void normalize_windowsLineEndingsStillCountAsEmbeddedFrontmatter() throws Exception {
+        final FrontmatterNormalizer.Normalized n = FrontmatterNormalizer.normalize(
+                "---\r\ntitle: T\r\n---\r\nbody", null );
+        assertEquals( "T", n.metadata().get( "title" ) );
+        assertTrue( n.body().contains( "body" ) && !n.body().contains( "title" ), n.body() );
+    }
+
+    @Test
+    void normalize_aDashLineThatIsNotAFrontmatterFenceIsBody() throws Exception {
+        final FrontmatterNormalizer.Normalized n = FrontmatterNormalizer.normalize( "----\nnot frontmatter", null );
+        assertTrue( n.metadata().isEmpty() );
+        assertEquals( "----\nnot frontmatter", n.body() );
+    }
 }

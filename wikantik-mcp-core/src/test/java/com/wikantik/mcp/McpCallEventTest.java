@@ -137,4 +137,25 @@ class McpCallEventTest {
         assertEquals( "cursor", McpCallEvent.clientName( ok ) );
         assertEquals( SessionHash.of( "sid-1" ), McpCallEvent.sessionHash( ok ) );
     }
+
+    private static String clientNameEmittedFor( final String client ) {
+        return str( rendered( () -> McpCallEvent.emit( "admin", "t", client, "none", true, 1L, 0L, null ) ).get( 0 ),
+                "mcp.client.name" );
+    }
+
+    @Test
+    void clientNameOfExactlySixtyFourCharsIsKeptWhole() {
+        final String name = "c".repeat( 64 );
+        assertEquals( name, clientNameEmittedFor( name ) );
+    }
+
+    @Test
+    void clientNameOfSixtyFiveCharsIsCutToSixtyFour() {
+        assertEquals( "c".repeat( 64 ), clientNameEmittedFor( "c".repeat( 65 ) ) );
+    }
+
+    @Test
+    void aNullClientNameIsRecordedAsQuestionMark() {
+        assertEquals( "?", clientNameEmittedFor( null ) );
+    }
 }

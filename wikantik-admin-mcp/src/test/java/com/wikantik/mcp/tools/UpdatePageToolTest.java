@@ -646,4 +646,133 @@ class UpdatePageToolTest {
         final String text = ( (McpSchema.TextContent) result.content().get( 0 ) ).text();
         assertTrue( text.contains( "DB offline" ) );
     }
+
+    private static String textOf( final McpSchema.CallToolResult r ) {
+        return ( (McpSchema.TextContent) r.content().get( 0 ) ).text();
+    }
+
+    private static com.google.gson.JsonObject jsonOf( final McpSchema.CallToolResult r ) {
+        return com.google.gson.JsonParser.parseString( textOf( r ) ).getAsJsonObject();
+    }
+
+    @Test
+    void execute_reportsTheNextVersionAndThePageName() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        final Page existing = mock( Page.class );
+        when( existing.getVersion() ).thenReturn( 4 );
+        when( pm.getPage( "P" ) ).thenReturn( existing );
+        when( pm.getPureText( eq( "P" ), anyInt() ) ).thenReturn( "cur" );
+
+        final var json = jsonOf( new UpdatePageTool( mock( PageSaveHelper.class ), pm, null ).execute( Map.of(
+            "slug", "P", "content", "new", "expectedContentHash", McpToolUtils.computeContentHash( "cur" ) ) ) );
+
+        assertEquals( 5, json.get( "newVersion" ).getAsInt() );
+        assertEquals( "P", json.get( "pageName" ).getAsString() );
+        assertTrue( json.get( "updated" ).getAsBoolean() );
+    }
+
+    @Test
+    void execute_hashMismatchCarriesTheCurrentHashVersionAndLatestContent() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        final PageSaveHelper helper = mock( PageSaveHelper.class );
+        final Page existing = mock( Page.class );
+        when( existing.getVersion() ).thenReturn( 7 );
+        when( pm.getPage( "P" ) ).thenReturn( existing );
+        when( pm.getPureText( eq( "P" ), anyInt() ) ).thenReturn( "drifted" );
+
+        final var json = jsonOf( new UpdatePageTool( helper, pm, null ).execute( Map.of(
+            "slug", "P", "content", "new", "expectedContentHash", "stale" ) ) );
+
+        assertEquals( "hash mismatch", json.get( "error" ).getAsString() );
+        assertEquals( McpToolUtils.computeContentHash( "drifted" ), json.get( "currentHash" ).getAsString() );
+        assertEquals( 7, json.get( "currentVersion" ).getAsInt() );
+        assertEquals( "drifted", json.get( "latestContent" ).getAsString() );
+        verify( helper, never() ).saveText( anyString(), anyString(), any( SaveOptions.class ) );
+    }
+
+    @Test
+    void execute_hashMismatchOnAPageWithNoTextReportsEmptyLatestContent() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        when( pm.getPage( "P" ) ).thenReturn( mock( Page.class ) );
+        when( pm.getPureText( eq( "P" ), anyInt() ) ).thenReturn( null );
+
+        final var json = jsonOf( new UpdatePageTool( mock( PageSaveHelper.class ), pm, null ).execute( Map.of(
+            "slug", "P", "content", "new", "expectedContentHash", "stale" ) ) );
+
+        assertEquals( "", json.get( "latestContent" ).getAsString() );
+        assertEquals( McpToolUtils.computeContentHash( "" ), json.get( "currentHash" ).getAsString() );
+    }
+
+    @Test
+    void execute_aPageWithNoStoredTextIsHashedAsEmptyAndCanBeUpdated() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        final PageSaveHelper helper = mock( PageSaveHelper.class );
+        final Page existing = mock( Page.class );
+        when( existing.getVersion() ).thenReturn( 1 );
+        when( pm.getPage( "P" ) ).thenReturn( existing );
+        when( pm.getPureText( eq( "P" ), anyInt() ) ).thenReturn( null );
+
+        final var json = jsonOf( new UpdatePageTool( helper, pm, null ).execute( Map.of(
+            "slug", "P", "content", "first body", "expectedContentHash", McpToolUtils.computeContentHash( "" ) ) ) );
+
+        assertTrue( json.get( "updated" ).getAsBoolean() );
+        assertEquals( McpToolUtils.computeContentHash( "" ), json.get( "newContentHash" ).getAsString(),
+            "a null re-read after the save hashes as empty text" );
+        verify( helper ).saveText( eq( "P" ), eq( "first body" ), any( SaveOptions.class ) );
+    }
+
+    @Test
+    void execute_carriesTheExistingCanonicalIdForwardWhenTheAgentOmitsIt() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        final PageSaveHelper helper = mock( PageSaveHelper.class );
+        final Page existing = mock( Page.class );
+        when( existing.getVersion() ).thenReturn( 1 );
+        when( pm.getPage( "P" ) ).thenReturn( existing );
+        final String current = "---\ncanonical_id:  01HAAAAAAAAAAAAAAAAAAAAAAA \ntitle: T\n---\nbody";
+        when( pm.getPureText( eq( "P" ), anyInt() ) ).thenReturn( current );
+
+        new UpdatePageTool( helper, pm, null ).execute( Map.of( "slug", "P", "content", "new body",
+            "expectedContentHash", McpToolUtils.computeContentHash( current ) ) );
+
+        final ArgumentCaptor< SaveOptions > opts = ArgumentCaptor.forClass( SaveOptions.class );
+        verify( helper ).saveText( eq( "P" ), eq( "new body" ), opts.capture() );
+        assertEquals( "01HAAAAAAAAAAAAAAAAAAAAAAA", opts.getValue().metadata().get( "canonical_id" ) );
+    }
+
+    @Test
+    void execute_aBodyOnlyEditOfAFrontmatterFreePageSavesNoMetadata() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        final PageSaveHelper helper = mock( PageSaveHelper.class );
+        final Page existing = mock( Page.class );
+        when( existing.getVersion() ).thenReturn( 1 );
+        when( pm.getPage( "P" ) ).thenReturn( existing );
+        when( pm.getPureText( eq( "P" ), anyInt() ) ).thenReturn( "plain" );
+
+        new UpdatePageTool( helper, pm, null ).execute( Map.of( "slug", "P", "content", "plain two",
+            "expectedContentHash", McpToolUtils.computeContentHash( "plain" ) ) );
+
+        final ArgumentCaptor< SaveOptions > opts = ArgumentCaptor.forClass( SaveOptions.class );
+        verify( helper ).saveText( eq( "P" ), eq( "plain two" ), opts.capture() );
+        assertNull( opts.getValue().metadata() );
+        assertFalse( opts.getValue().replaceMetadata() );
+        assertEquals( "update_page", opts.getValue().changeNote() );
+        assertEquals( "markdown", opts.getValue().markupSyntax() );
+    }
+
+    @Test
+    void execute_staleWarningsLeftBehindByAnEarlierSaveAreNotReported() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        final Page existing = mock( Page.class );
+        when( existing.getVersion() ).thenReturn( 1 );
+        when( pm.getPage( "P" ) ).thenReturn( existing );
+        when( pm.getPureText( eq( "P" ), anyInt() ) ).thenReturn( "cur" );
+        FrontmatterWarningSink.put( "P", List.of( FieldViolation.of( "x", Severity.WARNING, "x", "stale one" ) ) );
+        com.wikantik.api.content.ContentWarningSink.put( List.of( new com.wikantik.api.content.ContentViolation(
+            "body", Severity.WARNING, "C", "stale math", null ) ) );
+
+        final String text = textOf( new UpdatePageTool( mock( PageSaveHelper.class ), pm, null ).execute( Map.of(
+            "slug", "P", "content", "new", "expectedContentHash", McpToolUtils.computeContentHash( "cur" ) ) ) );
+
+        assertFalse( text.contains( "stale" ), text );
+    }
 }

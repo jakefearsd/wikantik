@@ -264,6 +264,28 @@ class PrivateClusterGateTest {
     }
 
     @Test
+    void anEnabledGateNeverCallsAMissingPagePrivateAndReportsItsConfiguredClusters() {
+        assertFalse( gate.isPrivate( null ) );
+        assertEquals( Set.of( HOME_LAB, REMOTE ), gate.privateClusters() );
+        verifyNoInteractions( pages );
+    }
+
+    @Test
+    void anEnabledGateJudgesNullAndEmptyTextNotPrivateWithoutReadingAnyPage() {
+        assertFalse( gate.isPrivateText( null ) );
+        assertFalse( gate.isPrivateText( "" ) );
+        assertTrue( gate.isPrivateText( "---\ncluster: home-lab-infrastructure\n---\nx\n" ) );
+        verifyNoInteractions( pages );
+    }
+
+    @Test
+    void aDisabledGateJudgesEvenPrivateLookingTextNotPrivate() {
+        final PrivateClusterGate off = new PrivateClusterGate( Set.of(), Set.of( "HomeLab" ), pages );
+
+        assertFalse( off.isPrivateText( "---\ncluster: home-lab-infrastructure\n---\nx\n" ) );
+    }
+
+    @Test
     void fromPropertiesReadsBothCommaSeparatedSettings() {
         final Properties props = new Properties();
         props.setProperty( PrivateClusterGate.PROP_PRIVATE_CLUSTERS, " home-lab-infrastructure , remote-host-management,, " );

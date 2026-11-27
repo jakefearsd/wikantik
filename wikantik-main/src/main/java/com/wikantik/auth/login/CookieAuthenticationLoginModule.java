@@ -208,7 +208,8 @@ public class CookieAuthenticationLoginModule extends AbstractLoginModule {
         //  Find the cookie file
         final File file = new File( cookieDir, uid );
         try {
-            if( file.getCanonicalPath().startsWith( cookieDir.getCanonicalPath() ) ) {
+            // Compare against the directory plus a separator: a bare prefix match also admits a sibling such as "logincookies-x".
+            if( file.getCanonicalPath().startsWith( cookieDir.getCanonicalPath() + File.separator ) ) {
                 return file;
             }
         } catch( final IOException e ) {

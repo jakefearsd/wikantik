@@ -19,11 +19,14 @@ function toErrors(err, fallback) {
  * Register an agent, or (with `agent`) edit one. `onRegistered({ agent, token })` receives the one-time token; this
  * form keeps none of it. Whoever registers an agent becomes its sponsor. Editing never mints or shows a key.
  */
-export default function WorkAgentForm({ queues, agent, locked = false, lockedHint, onRegistered, onSaved, onCancel }) {
+export default function WorkAgentForm({ queues, projects = [], agent, locked = false, lockedHint, onRegistered, onSaved, onCancel }) {
   const toast = useToast();
   const editing = !!agent;
   const [f, setF] = useState({ name: agent?.name || '', vendor: agent?.vendor || '', runtime: agent?.runtime || '' });
   const [picked, setPicked] = useState(agent?.queues || []);
+  // Projects this person may admit an agent to; a lone one is pre-checked so the common case is a single click.
+  const [admit, setAdmit] = useState(() => (!agent && projects.length === 1 ? [projects[0].key] : []));
+  const toggleProject = (key) => setAdmit((p) => (p.includes(key) ? p.filter((k) => k !== key) : [...p, key]));
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
   const set = (name) => (e) => setF((s) => ({ ...s, [name]: e.target.value }));
@@ -43,7 +46,7 @@ export default function WorkAgentForm({ queues, agent, locked = false, lockedHin
     const request = editing ? updateAgent(agent.id, fields) : registerAgent(fields);
     request
       .then((made) => {
-        if (editing) { toast.success(`Saved ${f.name}`); onSaved(); } else onRegistered(made);
+        if (editing) { toast.success(`Saved ${f.name}`); onSaved(); } else onRegistered({ ...made, admitTo: admit });
       })
       .catch((err) => {
         setBusy(false);
@@ -76,6 +79,16 @@ export default function WorkAgentForm({ queues, agent, locked = false, lockedHin
         </p>
       </fieldset>
       {note('queues')}
+      {!editing && projects.length > 0 && (
+        <fieldset className="work-fieldset">
+          <legend>Add to projects as member</legend>
+          {projects.map((p) => (
+            <label key={p.key} className="work-check">
+              <input type="checkbox" checked={admit.includes(p.key)} onChange={() => toggleProject(p.key)} /> {p.key}{p.name ? ` \u2014 ${p.name}` : ''}
+            </label>
+          ))}
+        </fieldset>
+      )}
       {errors.form && <div className="work-form-error" role="alert">{errors.form}</div>}
       <div className="work-actions">
         <button type="submit" className="btn btn-primary btn-sm" disabled={busy || (locked && !editing)}

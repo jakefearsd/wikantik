@@ -4,17 +4,21 @@ import { useEffect, useRef, useState } from 'react';
  * Shows an agent's plaintext key exactly once. The token lives only in the props of this panel: it is never
  * logged, stored or put in a message, and the caller drops it from its state when `onDone` fires.
  */
-export default function WorkTokenPanel({ agentName, token, onDone, autoFocus = true }) {
+export default function WorkTokenPanel({ agentName, token, endpoint, onDone, autoFocus = true }) {
   const [copied, setCopied] = useState(null); // null | true | false
   const panel = useRef(null);
   // Only the first panel takes focus: a later one must not pull it from a panel the admin is already using.
   useEffect(() => { if (autoFocus) panel.current?.focus(); }, [autoFocus]);
 
-  function copy() {
+  const command = endpoint
+    ? `claude mcp add --transport http wikantik-work ${endpoint} --header "Authorization: Bearer ${token}"`
+    : null;
+
+  function copy(text) {
     // The only place the token leaves the page, and only on an explicit click. Only a resolved writeText is "Copied."
     let pending;
     try {
-      pending = navigator.clipboard?.writeText ? navigator.clipboard.writeText(token) : null;
+      pending = navigator.clipboard?.writeText ? navigator.clipboard.writeText(text) : null;
     } catch (err) {
       console.warn('WorkTokenPanel: clipboard write threw', err?.name);
       pending = null;
@@ -36,8 +40,18 @@ export default function WorkTokenPanel({ agentName, token, onDone, autoFocus = t
         {copied === false && ' Copying failed \u2014 select the key and copy it by hand.'}
       </p>
       <code className="work-token-value">{token}</code>
+      {endpoint && (
+        <>
+          <p className="work-muted">Connect an MCP client to this endpoint:</p>
+          <code className="work-token-value">{endpoint}</code>
+          <p className="work-muted">Or run this command to add it to Claude Code:</p>
+          <code className="work-token-value">{command}</code>
+        </>
+      )}
       <div className="work-actions">
-        <button type="button" className="btn btn-sm" onClick={copy}>Copy</button>
+        <button type="button" className="btn btn-sm" onClick={() => copy(token)}>Copy</button>
+        {endpoint && <button type="button" className="btn btn-sm" onClick={() => copy(endpoint)}>Copy URL</button>}
+        {endpoint && <button type="button" className="btn btn-sm" onClick={() => copy(command)}>Copy command</button>}
         <button type="button" className="btn btn-sm btn-primary" onClick={onDone}>Done</button>
       </div>
     </section>

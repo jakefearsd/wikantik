@@ -2,7 +2,8 @@ import { Link } from 'react-router-dom';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import EmptyState from '../ui/EmptyState';
 import Spinner from '../ui/Spinner';
-import { listAgents, listProjects, listQueues, releaseAgentSponsorship, retireAgent, rotateAgentKey, takeOverAgent } from '../../api/work';
+import { listAgents, listProjects, putMember, listQueues, releaseAgentSponsorship, retireAgent, rotateAgentKey, takeOverAgent } from '../../api/work';
+import { apiUrl } from '../../api/client';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
 import WorkAgentForm from './WorkAgentForm';
@@ -44,6 +45,7 @@ export default function WorkAgents() {
   const [busy, setBusy] = useState(false);
   const [pendingError, setPendingError] = useState(null); // the server's refusal of the open confirmation
   const [announce, setAnnounce] = useState('');
+  const [admitWarning, setAdmitWarning] = useState(null); // projects a new agent could not be added to
   // Every minted key, each with its own panel. Append-only until that entry's Done: a later register or rotate can
   // never replace a key the admin has not copied. Component state only: dropped on Done and on unmount.
   const [keys, setKeys] = useState([]); // [{ id, agentName, token }]
@@ -87,10 +89,11 @@ export default function WorkAgents() {
 
   // Until /api/auth/user resolves the user is null: nothing is loaded for a visitor who is not signed in.
   if (authLoading) return <Spinner label="Loading…" />;
+  const endpoint = `${window.location.origin}${apiUrl('/work-mcp')}`;
   const locked = keys.length > 0;
   const lockProps = { disabled: locked, 'aria-describedby': locked ? LOCK_HINT : undefined };
   const panel = keys.map((k, i) => (
-    <WorkTokenPanel key={k.id} agentName={k.agentName} token={k.token} autoFocus={i === 0} onDone={() => dropKey(k.id)} />
+    <WorkTokenPanel key={k.id} agentName={k.agentName} token={k.token} endpoint={endpoint} autoFocus={i === 0} onDone={() => dropKey(k.id)} />
   ));
   // The key panel sits above every load state: a failed or slow list read must never hide an unseen key.
   if (state.error) return <div className="work-products">{panel}<WorkLoadError error={state.error} fallback="Could not load agents and queues." onRetry={load} /></div>;
@@ -102,8 +105,19 @@ export default function WorkAgents() {
   function registered(made) {
     if (!mounted.current) return;
     setRegistering(false);
-    addKey(made.agent?.name || 'agent', made.token);
-    load();
+    const name = made.agent?.name || 'agent';
+    addKey(name, made.token); // the key is shown first: nothing below may lose it
+    const admitTo = made.admitTo || [];
+    setAdmitWarning(null);
+    Promise.allSettled(admitTo.map((key) => putMember(key, { principal: name, principalKind: 'agent', role: 'member' })))
+      .then((results) => {
+        const failed = admitTo.filter((_, i) => results[i].status === 'rejected');
+        failed.forEach((key) => console.warn('WorkAgents: could not add the new agent to', key));
+        if (mounted.current && failed.length) {
+          setAdmitWarning(`Could not add ${name} to ${failed.join(', ')}. Add it from ${failed.length > 1 ? "those projects'" : "that project's"} Settings.`);
+        }
+        if (mounted.current) load();
+      });
   }
 
   function ask(agent, action) {
@@ -145,6 +159,7 @@ export default function WorkAgents() {
   // Leading an unarchived project is what registering, editing and taking over need (besides being a wiki admin).
   // Unknown (the projects could not be read) offers the button and lets the server answer.
   const leads = state.projects ? state.projects.some((p) => p.role === 'lead' && !p.archived) : true;
+  const eligible = (state.projects || []).filter((p) => !p.archived && (isAdmin || p.role === 'lead'));
   const mayRegister = isAdmin || leads;
   const manages = (a) => !a.retiredAt && (isAdmin || a.sponsoredByMe);
   const mayEdit = (a) => manages(a) && (isAdmin || leads);
@@ -157,11 +172,12 @@ export default function WorkAgents() {
       {panel}
       <p role="status" aria-live="polite" className="work-visually-hidden" data-testid="work-agents-announce">{announce}</p>
       {locked && <p id={LOCK_HINT} className="work-visually-hidden">Copy or dismiss the key shown above first.</p>}
+      {admitWarning && <div className="work-form-error" role="alert">{admitWarning}</div>}
       {refreshError && <div className="work-form-error" role="alert">{refreshError}</div>}
       <section className="work-section" aria-label="Agents">
         <h2 className="work-subheading">Agents</h2>
         {registering
-          ? <WorkAgentForm queues={state.queues} locked={locked} lockedHint={LOCK_HINT} onRegistered={registered} onCancel={() => setRegistering(false)} />
+          ? <WorkAgentForm queues={state.queues} projects={eligible} locked={locked} lockedHint={LOCK_HINT} onRegistered={registered} onCancel={() => setRegistering(false)} />
           : mayRegister && <p><button type="button" className="btn btn-sm" {...lockProps} onClick={() => setRegistering(true)}>Register agent</button></p>}
         {sorted.length === 0 ? <EmptyState message="No agents registered yet." /> : (
           <ul className="work-product-rows">

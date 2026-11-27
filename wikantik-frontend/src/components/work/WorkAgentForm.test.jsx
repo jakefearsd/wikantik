@@ -60,7 +60,7 @@ describe('WorkAgentForm', () => {
     submit();
     await waitFor(() => expect(registerAgent).toHaveBeenCalledWith(
       { name: 'new-bot@host.lan', vendor: 'acme', runtime: 'claude', queues: ['build'] }));
-    await waitFor(() => expect(onRegistered).toHaveBeenCalledWith({ agent: { name: 'new-bot' }, token: 'tok' }));
+    await waitFor(() => expect(onRegistered).toHaveBeenCalledWith({ agent: { name: 'new-bot' }, token: 'tok', admitTo: [] }));
     expect(onSaved).not.toHaveBeenCalled();
   });
 
@@ -161,5 +161,29 @@ describe('WorkAgentForm', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(onCancel).toHaveBeenCalled();
     expect(registerAgent).not.toHaveBeenCalled();
+  });
+
+  describe('add to projects', () => {
+    const P = (key) => ({ key, name: `${key} project`, archived: false, role: 'lead' });
+    it('pre-checks the only eligible project and returns it in admitTo', async () => {
+      renderForm({ projects: [P('PLAT')] });
+      expect(screen.getByLabelText(/PLAT/)).toBeChecked();
+      name('new-bot');
+      submit();
+      await waitFor(() => expect(onRegistered).toHaveBeenCalledWith({ agent: { name: 'new-bot' }, token: 'tok', admitTo: ['PLAT'] }));
+    });
+    it('leaves several eligible projects unchecked', () => {
+      renderForm({ projects: [P('PLAT'), P('OPS')] });
+      expect(screen.getByLabelText(/PLAT/)).not.toBeChecked();
+      expect(screen.getByLabelText(/OPS/)).not.toBeChecked();
+      expect(screen.getByText('Add to projects as member')).toBeInTheDocument();
+    });
+    it('hides the fieldset when no project is eligible, and when editing', () => {
+      const { unmount } = renderForm({ projects: [] });
+      expect(screen.queryByText('Add to projects as member')).toBeNull();
+      unmount();
+      renderForm({ agent: AGENT, projects: [P('PLAT')] });
+      expect(screen.queryByText('Add to projects as member')).toBeNull();
+    });
   });
 });

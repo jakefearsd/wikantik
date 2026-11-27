@@ -6,15 +6,15 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 vi.mock('../../api/work', () => ({
   listAgents: vi.fn(), listQueues: vi.fn(), createQueue: vi.fn(), updateQueue: vi.fn(), retireQueue: vi.fn(),
   registerAgent: vi.fn(), updateAgent: vi.fn(), rotateAgentKey: vi.fn(), retireAgent: vi.fn(),
-  takeOverAgent: vi.fn(), releaseAgentSponsorship: vi.fn(), listProjects: vi.fn(),
+  takeOverAgent: vi.fn(), releaseAgentSponsorship: vi.fn(), listProjects: vi.fn(), putMember: vi.fn(),
 }));
-vi.mock('../../api/client', () => ({ api: { listMentionableUsers: vi.fn() } }));
+vi.mock('../../api/client', () => ({ api: { listMentionableUsers: vi.fn() }, apiUrl: (p) => p }));
 vi.mock('../../hooks/useAuth', () => ({ useAuth: vi.fn() }));
 const toast = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
 vi.mock('../../hooks/useToast', () => ({ useToast: () => toast }));
 import {
   listAgents, listQueues, createQueue, registerAgent, rotateAgentKey, retireAgent, retireQueue, updateAgent, updateQueue,
-  takeOverAgent, releaseAgentSponsorship, listProjects,
+  takeOverAgent, releaseAgentSponsorship, listProjects, putMember,
 } from '../../api/work';
 import { api } from '../../api/client';
 import { useAuth } from '../../hooks/useAuth';
@@ -53,6 +53,7 @@ beforeEach(() => {
   listQueues.mockResolvedValue(QUEUES);
   listProjects.mockResolvedValue([{ key: 'PLAT', role: 'lead', archived: false }]);
   api.listMentionableUsers.mockResolvedValue({ users: [{ id: 'u1', displayName: 'Alice A' }, { id: 'u2', displayName: 'Bob B' }] });
+  putMember.mockResolvedValue({});
   createQueue.mockResolvedValue({});
   registerAgent.mockResolvedValue({ agent: AGENTS[1], token: SECRET });
   rotateAgentKey.mockResolvedValue({ agent: AGENTS[1], token: SECRET });
@@ -594,5 +595,48 @@ describe('WorkAgents', () => {
     expect(screen.queryByLabelText('New owner')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Yes, rotate mine-bot' }));
     await waitFor(() => expect(rotateAgentKey).toHaveBeenCalledWith(11));
+  });
+
+  describe('admitting the new agent', () => {
+    const BOT = { name: 'bot' };
+    it('shows the token before admitting, then admits to each checked project', async () => {
+      registerAgent.mockResolvedValue({ agent: BOT, token: SECRET });
+      let release;
+      putMember.mockReturnValue(new Promise((r) => { release = r; }));
+      renderPage();
+      await openRegister();
+      expect(screen.getByLabelText(/PLAT/)).toBeChecked();
+      fireEvent.click(screen.getByRole('button', { name: 'Register' }));
+      const panel = await screen.findByRole('dialog', { name: /key/i });
+      expect(within(panel).getByText(SECRET)).toBeInTheDocument();
+      expect(within(panel).getByText(`claude mcp add --transport http wikantik-work ${window.location.origin}/work-mcp --header "Authorization: Bearer ${SECRET}"`)).toBeInTheDocument();
+      await waitFor(() => expect(putMember).toHaveBeenCalledWith('PLAT', { principal: 'bot', principalKind: 'agent', role: 'member' }));
+      await act(async () => { release({}); });
+      expect(screen.queryByRole('alert')).toBeNull();
+    });
+    it('keeps the token and names the project when admission fails', async () => {
+      listProjects.mockResolvedValue([{ key: 'PLAT', role: 'lead', archived: false }, { key: 'OPS', role: 'lead', archived: false }]);
+      registerAgent.mockResolvedValue({ agent: BOT, token: SECRET });
+      putMember.mockImplementation((key) => (key === 'OPS' ? Promise.reject(new Error('no')) : Promise.resolve({})));
+      renderPage();
+      await openRegister();
+      fireEvent.click(screen.getByLabelText(/PLAT/));
+      fireEvent.click(screen.getByLabelText(/OPS/));
+      fireEvent.click(screen.getByRole('button', { name: 'Register' }));
+      const alert = await screen.findByRole('alert');
+      expect(alert).toHaveTextContent('OPS');
+      expect(alert).toHaveTextContent('Settings');
+      expect(alert).not.toHaveTextContent('PLAT');
+      expect(screen.getByRole('dialog', { name: /key/i })).toHaveTextContent(SECRET);
+    });
+    it('makes no putMember call when nothing is checked', async () => {
+      registerAgent.mockResolvedValue({ agent: BOT, token: SECRET });
+      renderPage();
+      await openRegister();
+      fireEvent.click(screen.getByLabelText(/PLAT/));
+      fireEvent.click(screen.getByRole('button', { name: 'Register' }));
+      await screen.findByRole('dialog', { name: /key/i });
+      expect(putMember).not.toHaveBeenCalled();
+    });
   });
 });

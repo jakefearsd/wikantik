@@ -374,13 +374,16 @@ public class ScopedAdminGrantIT {
     }
 
     /**
-     * Asserts NO {@code access.denied} row with the given correlationId appears within the poll
-     * window (waited out in full, to give the async audit writer ample time to flush anything it
-     * might have recorded).
+     * Asserts NO {@code access.denied} row with the given correlationId exists once everything recorded so far has
+     * been stored. The audit writer is one thread draining one FIFO queue (batch order kept on retry), so a denial
+     * recorded now that has become visible proves every earlier entry is visible too.
      */
-    private static void assertNoAccessDenied( final String correlationId, final long waitMs )
+    private static void assertNoAccessDenied( final String correlationId, final long timeoutMs )
             throws IOException, InterruptedException {
-        Thread.sleep( waitMs );
+        final String fence = "scoped-admin-it-fence-" + System.nanoTime();
+        assertEquals( 403, getWithMarker( noGrantClient, "/admin/users", fence ).statusCode(),
+                "the fence request must be denied" );
+        pollForAccessDenied( fence, timeoutMs );
         final HttpResponse<String> resp = get( adminClient, "/admin/audit?limit=1000" );
         assertEquals( 200, resp.statusCode(), "GET /admin/audit should return 200, got: " + resp.body() );
         final JsonArray rows = JsonParser.parseString( resp.body() ).getAsJsonArray();

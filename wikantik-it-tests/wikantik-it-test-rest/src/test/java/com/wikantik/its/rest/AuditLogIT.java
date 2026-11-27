@@ -242,15 +242,34 @@ public class AuditLogIT {
     }
 
     /**
-     * Verifies that NO row with the given {@code eventType} and {@code targetId}
-     * exists in the audit log after waiting the full poll window (to give the
-     * async writer ample time to flush anything it might record).
+     * Waits until the audit writer has stored everything recorded before this call. The writer is one thread draining
+     * one FIFO queue and keeps batch order on retry, so once a denial recorded now is visible, every entry recorded
+     * before it is too. Ends logged in as admin.
+     */
+    private void awaitAuditFlushed() throws IOException, InterruptedException {
+        logoutAdmin();
+        final String fence = "audit-it-fence-" + System.nanoTime();
+        final HttpResponse<String> denied = client.send(
+                HttpRequest.newBuilder()
+                        .uri( URI.create( baseUrl + "/admin/users" ) )
+                        .header( "Accept", "application/json" )
+                        .header( "X-Request-Id", fence )
+                        .GET()
+                        .build(),
+                HttpResponse.BodyHandlers.ofString() );
+        assertEquals( 403, denied.statusCode(), "the fence request must be denied: " + denied.body() );
+        loginAsAdmin();
+        pollForAccessDenied( fence, POLL_TIMEOUT_MS );
+    }
+
+    /**
+     * Verifies that NO row with the given {@code eventType} and {@code targetId} exists in the audit log once
+     * everything recorded so far has been stored ({@link #awaitAuditFlushed()}).
      */
     private void assertNoEvent( final String expectedType,
-                                final String expectedTarget,
-                                final long waitMs )
+                                final String expectedTarget )
             throws IOException, InterruptedException {
-        Thread.sleep( waitMs );
+        awaitAuditFlushed();
         final HttpResponse<String> resp = get( "/admin/audit?limit=1000" );
         assertEquals( 200, resp.statusCode(),
                 "GET /admin/audit should return 200, got: " + resp.body() );
@@ -434,8 +453,8 @@ public class AuditLogIT {
             assertEquals( 200, getResp.statusCode(),
                     "GET plain page should return 200: " + getResp.body() );
 
-            // Wait the full poll window, then assert no page.read row appeared for this page.
-            assertNoEvent( "page.read", PLAIN_PAGE, POLL_TIMEOUT_MS );
+            // Once everything recorded so far is stored, assert no page.read row appeared for this page.
+            assertNoEvent( "page.read", PLAIN_PAGE );
         } finally {
             logoutAdmin();
         }
@@ -752,9 +771,8 @@ public class AuditLogIT {
         assertEquals( 200, getResp.statusCode(),
                 "Anonymous GET /api/pages/" + capPage + " must be 200: " + getResp.body() );
 
-        // Wait the full async-flush window, then assert NO access.denied row carries our marker.
-        loginAsAdmin();
-        Thread.sleep( POLL_TIMEOUT_MS );
+        // Once everything recorded so far is stored, assert NO access.denied row carries our marker.
+        awaitAuditFlushed();
         final HttpResponse<String> auditResp = get( "/admin/audit?limit=1000" );
         assertEquals( 200, auditResp.statusCode(),
                 "GET /admin/audit should return 200: " + auditResp.body() );

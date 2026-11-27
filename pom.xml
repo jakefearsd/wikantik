@@ -950,28 +950,11 @@
       <!-- JaCoCo coverage instrumentation is opt-in via the `coverage` profile.
            Default builds skip the agent attach + report so test forks run unencumbered.
            Run `mvn install -Pcoverage` (or set `-Dcoverage=true`) to collect coverage. -->
-      <plugin>
-        <groupId>org.cyclonedx</groupId>
-        <artifactId>cyclonedx-maven-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>generate-sbom</id>
-            <goals>
-              <goal>makeAggregateBom</goal>
-            </goals>
-            <phase>package</phase>
-            <configuration>
-              <externalReferences>
-                <externalReference>
-                  <type>vulnerability-assertion</type>
-                  <url>https://wikantik.com/cyclonedx/vdr.xml</url>
-                </externalReference>
-              </externalReferences>
-              <outputFormat>xml</outputFormat>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
+      <!-- No SBOM goal is bound to the lifecycle. The upstream binding (makeAggregateBom at package, for Maven Central
+           releases this project does not make) is an aggregator goal: in a parallel reactor Maven runs it only with
+           exclusive access, so every module reaching package waited for all other running goals (other modules'
+           tests) to finish: about 80 s of Phase 1 and 155 s of the IT phase (2026-11-27). The one SBOM anything reads
+           is built by CI's osv-scan job with its own explicit makeAggregateBom call. -->
 
       <!-- Configure maven-dependency-plugin to resolve Mockito JAR path for agent -->
       <plugin>

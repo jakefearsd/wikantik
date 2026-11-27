@@ -158,7 +158,7 @@ public class WikiBootstrapServletContextListener implements ServletContextListen
         if ( engine != null ) runQuietly( "engine.shutdown()", engine::shutdown );
 
         // 4. Interrupt known background threads and wait briefly for them to exit.
-        interruptAndJoinKnownBackgroundThreads();
+        interruptAndJoinKnownBackgroundThreads( liveThreads() );
 
         // 5. Clear the WikiSession guest-session ThreadLocal for the context thread.
         runQuietly( "WikiSession.removeCurrentGuestSession()",
@@ -230,10 +230,12 @@ public class WikiBootstrapServletContextListener implements ServletContextListen
      * wake up immediately rather than waiting out their full sleep interval.
      * Force-interrupting is repeated after the join timeout for any thread that
      * did not exit cleanly.
+     *
+     * @param candidates the threads to consider; only those with a known background-thread name are touched
      */
-    static void interruptAndJoinKnownBackgroundThreads() {
+    static void interruptAndJoinKnownBackgroundThreads( final java.util.Collection< Thread > candidates ) {
         final java.util.List< Thread > targets = new java.util.ArrayList<>();
-        for ( final Thread t : Thread.getAllStackTraces().keySet() ) {
+        for ( final Thread t : candidates ) {
             if ( isKnownBackgroundThread( t ) && t.isAlive() ) {
                 LOG.info( "contextDestroyed: interrupting background thread '{}' for fast shutdown",
                     t.getName() );
@@ -256,6 +258,11 @@ public class WikiBootstrapServletContextListener implements ServletContextListen
                 }
             }
         }
+    }
+
+    /** The threads {@link #contextDestroyed} considers stopping: every live thread in the JVM (a seam for tests). */
+    java.util.Collection< Thread > liveThreads() {
+        return Thread.getAllStackTraces().keySet();
     }
 
     private static boolean isKnownBackgroundThread( final Thread t ) {

@@ -32,6 +32,7 @@ import org.mockito.Mockito;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletContextEvent;
 
+import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -203,6 +204,46 @@ class WikiBootstrapServletContextListenerTest {
         void shutdownLogging() {
             shutdownLoggingCalled.set( true );
         }
+
+        /** Hermetic: never the JVM's threads, which hold whatever other test classes in this fork leaked. */
+        @Override
+        java.util.Collection< Thread > liveThreads() {
+            return List.of();
+        }
+    }
+
+    @Test
+    void testLiveThreads_isEveryThreadInTheJvm() {
+        Assertions.assertTrue( new WikiBootstrapServletContextListener().liveThreads().contains( Thread.currentThread() ),
+            "production shutdown considers the JVM's threads, this one included" );
+    }
+
+    @Test
+    void testContextDestroyed_leavesThreadsOutsideItsThreadSourceAlone() throws InterruptedException {
+        // a matching thread another test class leaked into this JVM, and slow to die
+        final java.util.concurrent.atomic.AtomicInteger interrupts = new java.util.concurrent.atomic.AtomicInteger();
+        final java.util.concurrent.CountDownLatch release = new java.util.concurrent.CountDownLatch( 1 );
+        final Thread leaked = new Thread( () -> {
+            while ( release.getCount() > 0 ) {
+                try {
+                    release.await();
+                } catch ( final InterruptedException ie ) {
+                    interrupts.incrementAndGet();
+                }
+            }
+        }, "WatchDog for 'leaked-by-another-test'" );
+        leaked.setDaemon( true );
+        leaked.start();
+        try {
+            final long started = System.nanoTime();
+            new TestableListener().contextDestroyed( null );
+            final long tookMs = ( System.nanoTime() - started ) / 1_000_000L;
+            Assertions.assertEquals( 0, interrupts.get(), "a thread outside the listener's thread source is not touched" );
+            Assertions.assertTrue( tookMs < 1_000, "no join wait on a thread outside the source: " + tookMs + " ms" );
+        } finally {
+            release.countDown();
+            leaked.join( 2_000 );
+        }
     }
 
     @Test
@@ -247,7 +288,7 @@ class WikiBootstrapServletContextListenerTest {
         responsive.start();
 
         try {
-            Assertions.assertDoesNotThrow( WikiBootstrapServletContextListener::interruptAndJoinKnownBackgroundThreads );
+            Assertions.assertDoesNotThrow( () -> WikiBootstrapServletContextListener.interruptAndJoinKnownBackgroundThreads( List.of( responsive ) ) );
             responsive.join( 2_000 );
             Assertions.assertFalse( responsive.isAlive(), "a responsive matching thread must be joined promptly" );
             Assertions.assertTrue( interrupted.get() );
@@ -279,7 +320,7 @@ class WikiBootstrapServletContextListenerTest {
         stubborn.start();
 
         try {
-            Assertions.assertDoesNotThrow( WikiBootstrapServletContextListener::interruptAndJoinKnownBackgroundThreads );
+            Assertions.assertDoesNotThrow( () -> WikiBootstrapServletContextListener.interruptAndJoinKnownBackgroundThreads( List.of( stubborn ) ) );
             stubborn.join( 4_000 );
             Assertions.assertTrue( interruptCount.get() >= 1 );
         } finally {

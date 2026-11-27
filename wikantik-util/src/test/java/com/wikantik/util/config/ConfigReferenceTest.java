@@ -3,6 +3,12 @@ package com.wikantik.util.config;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Set;
+import org.junit.jupiter.api.io.TempDir;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -146,5 +152,69 @@ class ConfigReferenceTest {
         assertEquals( List.of( "Directory for the TDB2 store." ), e.description() );
         assertEquals( "path", e.type() );
         assertEquals( "<workDir>/ontology-tdb2, or java.io.tmpdir/wikantik-ontology-tdb2 when workDir is unset.", e.blankMeans() );
+    }
+
+    private static ConfigReference.Entry only( final String... lines ) {
+        final ConfigReference.Parsed parsed = ConfigReference.parse( List.of( lines ), "k." );
+        return parsed.entries().get( parsed.entries().size() - 1 );
+    }
+
+    @Test
+    void aFileIsReadAsLatin1AndParsed( @TempDir final Path dir ) throws IOException {
+        final Path file = dir.resolve( "x.properties" );
+        Files.write( file, "# café doc\nk.a = 1\n".getBytes( StandardCharsets.ISO_8859_1 ) );
+        final ConfigReference.Parsed parsed = ConfigReference.parse( file, "k." );
+        assertEquals( 1, parsed.entries().size() );
+        assertEquals( "1", parsed.entries().get( 0 ).value() );
+        assertEquals( List.of( "café doc" ), parsed.entries().get( 0 ).description() );
+        assertEquals( 2, parsed.entries().get( 0 ).line() );
+    }
+
+    @Test
+    void aSectionHeadingEndsTheCommentBlockAbove() {
+        assertEquals( List.of(), only( "# stale", "# [Sec]", "k.a=1" ).description() );
+        assertEquals( "Sec", only( "# stale", "# [Sec]", "k.a=1" ).section() );
+    }
+
+    @Test
+    void aNonPropertyLineEndsTheCommentBlockAbove() {
+        assertEquals( List.of(), only( "# doc", "this is not a property line", "k.a=1" ).description() );
+    }
+
+    @Test
+    void aKeyEndsTheCommentBlockForTheNextKey() {
+        assertEquals( List.of(), only( "# doc", "k.a=1", "k.b=2" ).description() );
+    }
+
+    @Test
+    void aCommentedOutKeyEndsTheCommentBlockAboveIt() {
+        final ConfigReference.Parsed parsed = ConfigReference.parse( List.of( "# doc", "# k.old=1", "k.b=2" ), "k." );
+        assertEquals( List.of( "k.old" ), parsed.commentedOutKeys() );
+        assertEquals( List.of(), parsed.entries().get( 0 ).description() );
+    }
+
+    @Test
+    void aBlankLineEndsTheCommentBlockAbove() {
+        assertEquals( List.of(), only( "# doc", "", "k.a=1" ).description() );
+    }
+
+    @Test
+    void entryPredicatesReflectTheirFields() {
+        final ConfigReference.Entry filled = new ConfigReference.Entry( "k.a", "v", List.of( "d" ), "boolean", null, "properties", null, 1 );
+        assertFalse( filled.isBlank() );
+        assertTrue( filled.hasType() );
+        assertTrue( filled.hasDescription() );
+        final ConfigReference.Entry bare = new ConfigReference.Entry( "k.a", "  ", List.of(), "  ", null, "properties", null, 1 );
+        assertTrue( bare.isBlank() );
+        assertFalse( bare.hasType() );
+        assertFalse( bare.hasDescription() );
+        assertFalse( new ConfigReference.Entry( "k.a", "v", List.of(), null, null, "properties", null, 1 ).hasType() );
+    }
+
+    @Test
+    void keysListsEachDeclaredKeyOnceInOrder() {
+        final ConfigReference.Parsed parsed = ConfigReference.parse( List.of( "k.b=1", "k.a=2", "k.b=3" ), "k." );
+        assertEquals( Set.of( "k.b", "k.a" ), parsed.keys() );
+        assertEquals( List.of( "k.b", "k.a" ), List.copyOf( parsed.keys() ) );
     }
 }

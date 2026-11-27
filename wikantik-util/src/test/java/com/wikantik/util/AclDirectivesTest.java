@@ -23,6 +23,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.time.Duration;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -466,5 +467,70 @@ class AclDirectivesTest {
         assertTrue( tracked.cutBefore( "Para.\n".length() ) );
         assertFalse( tracked.cutBefore( 1 ) );
         assertEquals( text.indexOf( "After" ), tracked.toSource( "Para.\n".length() ) );
+    }
+
+    private static final String D = "[{ALLOW view Admin}]";
+
+    @ParameterizedTest( name = "[{index}] {0}" )
+    @CsvSource( delimiter = '|', value = {
+        "lf before last-line directive|line1\\n[{ALLOW view Admin}]|line1",
+        "crlf before last-line directive|line1\\r\\n[{ALLOW view Admin}]|line1",
+        "lone cr before last-line directive|line1\\r[{ALLOW view Admin}]|line1",
+        "crlf at start of text|\\r\\n[{ALLOW view Admin}]|''",
+        "directive only|[{ALLOW view Admin}]|''",
+        "two whole-line directives|[{ALLOW view Admin}]\\r\\n[{ALLOW view Admin}]|''",
+        "crlf between lines|a\\r\\n[{ALLOW view Admin}]\\r\\nb|a\\r\\nb",
+        "lf between lines|a\\n[{ALLOW view Admin}]\\nb|a\\nb",
+    } )
+    void aDirectiveAloneOnItsLineTakesItsLineEndWithIt( final String name, final String in, final String expected ) {
+        assertEquals( unescape( expected ), AclDirectives.strip( unescape( in ) ) );
+    }
+
+    private static String unescape( final String s ) {
+        return "''".equals( s ) ? "" : s.replace( "\\r", "\r" ).replace( "\\n", "\n" );
+    }
+
+    @Test
+    void aWholeLineDirectiveLeavesNoReplacementBehind() {
+        assertEquals( "a\nb", AclDirectives.strip( "a\n" + D + "\nb", "X" ) );
+    }
+
+    @Test
+    void aDirectiveInsideALineIsReplacedByTheReplacement() {
+        assertEquals( "aXb", AclDirectives.strip( "a" + D + "b", "X" ) );
+    }
+
+    @Test
+    void twoTildesOrTwoBackticksAreNotAFence() {
+        assertEquals( "~~\n~~", AclDirectives.strip( "~~\n" + D + "\n~~" ) );
+        assertEquals( "``\n``", AclDirectives.strip( "``\n" + D + "\n``" ) );
+    }
+
+    @Test
+    void aRepeatedLetterIsNotAFence() {
+        assertEquals( "aaa\nbbb\naaa", AclDirectives.strip( "aaa\n" + D + "\nbbb\naaa" ).replace( "\n\n", "\n" ) );
+        assertEquals( "aaa\naaa", AclDirectives.strip( "aaa\n" + D + "\naaa" ) );
+    }
+
+    @Test
+    void aTildeFenceMayCarryABacktickInItsInfoString() {
+        final String text = "~~~ a`b\n" + D + "\n~~~";
+        assertEquals( text, AclDirectives.strip( text ) );
+    }
+
+    @Test
+    void aBacktickFenceWithABacktickInItsInfoStringIsNotAFence() {
+        assertEquals( "```a`b\n```", AclDirectives.strip( "```a`b\n" + D + "\n```" ) );
+    }
+
+    @Test
+    void aDirectiveInsideAnInlineSpanIsKeptWhateverFollowsTheSpan() {
+        final String text = "`" + D + "` and `x`";
+        assertEquals( text, AclDirectives.strip( text ) );
+    }
+
+    @Test
+    void aDirectiveBetweenTwoSpansGoesAndBothSpansStay() {
+        assertEquals( "`a`  `b`", AclDirectives.strip( "`a` " + D + " `b`" ) );
     }
 }

@@ -30,6 +30,7 @@ import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.util.NoSuchElementException;
 import java.util.Properties;
+import java.time.Duration;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -502,11 +503,6 @@ public class TextUtilTest {
     }
 
     @Test
-    public void testToHexStringEmpty() {
-        assertEquals( "", TextUtil.toHexString( new byte[0] ) );
-    }
-
-    @Test
     public void testToHexStringSingleByte() {
         assertEquals( "FF", TextUtil.toHexString( new byte[] { (byte) 0xFF } ) );
     }
@@ -768,16 +764,6 @@ public class TextUtilTest {
     // --- escapeHtml tests ---
 
     @Test
-    public void testEscapeHtmlNull() {
-        assertEquals( "", TextUtil.escapeHtml( null ) );
-    }
-
-    @Test
-    public void testEscapeHtmlEmpty() {
-        assertEquals( "", TextUtil.escapeHtml( "" ) );
-    }
-
-    @Test
     public void testEscapeHtmlPlainText() {
         assertEquals( "hello world", TextUtil.escapeHtml( "hello world" ) );
     }
@@ -863,4 +849,111 @@ public class TextUtilTest {
         assertEquals( 5, TextUtil.parsePositiveInt( "5", 42 ) );
     }
 
+    @Test
+    void urlEncodeKeepsEveryAsciiLetterAndDigitAtTheEdgesOfTheirRanges() {
+        assertEquals( "azAZ09", TextUtil.urlEncode( "azAZ09".getBytes( StandardCharsets.US_ASCII ) ) );
+    }
+
+    @Test
+    void urlEncodeEscapesTheCharactersJustOutsideTheLetterAndDigitRanges() {
+        // '@' is before 'A', '[' after 'Z', '`' before 'a', '{' after 'z', '/' is kept, ':' is after '9'
+        assertEquals( "%40%5B%60%7B%3A", TextUtil.urlEncode( "@[`{:".getBytes( StandardCharsets.US_ASCII ) ) );
+    }
+
+    @Test
+    void urlEncodeMapsSpaceToPlusAndKeepsTheSafePunctuation() {
+        assertEquals( "a+b_c.d*e-f/g", TextUtil.urlEncode( "a b_c.d*e-f/g".getBytes( StandardCharsets.US_ASCII ) ) );
+    }
+
+    @Test
+    void getBooleanPropertyReturnsTheDefaultWhenTheKeyIsNowhere() {
+        final String key = "wikantik.test.no.such.key";
+        assertEquals( true, TextUtil.getBooleanProperty( new Properties(), key, true ) );
+        assertEquals( false, TextUtil.getBooleanProperty( new Properties(), key, false ) );
+    }
+
+    @Test
+    void getBooleanPropertyReadsThePropertiesWhenThereIsNoOverride() {
+        final Properties props = new Properties();
+        props.setProperty( "wikantik.test.flag", "yes" );
+        assertEquals( true, TextUtil.getBooleanProperty( props, "wikantik.test.flag", false ) );
+    }
+
+    @Test
+    void beautifyStringStopsNowhereBeforeThePunctuationEnds() {
+        assertEquals( "Foo-Bar", TextUtil.beautifyString( "Foo-Bar" ) );
+        assertEquals( "Foo - Bar Baz", TextUtil.beautifyString( "Foo - BarBaz" ) );
+    }
+
+    @Test
+    void beautifyStringSeparatesAnUpperCaseLetterFromAFollowingDigit() {
+        assertEquals( "A 1", TextUtil.beautifyString( "A1" ) );
+        assertEquals( "Section 2", TextUtil.beautifyString( "Section2" ) );
+    }
+
+    @Test
+    void escapeHtmlTreatsNullAsEmptyAndEscapesTheFourCharacters() {
+        assertEquals( "", TextUtil.escapeHtml( null ) );
+        assertEquals( "", TextUtil.escapeHtml( "" ) );
+        assertEquals( "a&amp;&lt;&gt;&quot;b", TextUtil.escapeHtml( "a&<>\"b" ) );
+        assertEquals( "&amp;amp;", TextUtil.escapeHtml( "&amp;" ) );
+    }
+
+    @Test
+    void parsePositiveIntFallsBackForNullEmptyAndNonPositiveValues() {
+        assertEquals( 7, TextUtil.parsePositiveInt( null, 7 ) );
+        assertEquals( 7, TextUtil.parsePositiveInt( "", 7 ) );
+        assertEquals( 7, TextUtil.parsePositiveInt( "0", 7 ) );
+        assertEquals( 7, TextUtil.parsePositiveInt( "-3", 7 ) );
+        assertEquals( 7, TextUtil.parsePositiveInt( "abc", 7 ) );
+        assertEquals( 1, TextUtil.parsePositiveInt( "1", 7 ) );
+        assertEquals( 42, TextUtil.parsePositiveInt( "42", 7 ) );
+    }
+
+    @Test
+    void escapeHTMLEntitiesKeepsAnEntityThatFollowsOtherText() {
+        // an entity that does not start at index 0 must be copied verbatim, and the scan must move past it
+        assertTimeoutPreemptively( Duration.ofSeconds( 5 ), () -> {
+            assertEquals( "x&amp;y", TextUtil.escapeHTMLEntities( "x&amp;y" ) );
+            assertEquals( "a &#39; b", TextUtil.escapeHTMLEntities( "a &#39; b" ) );
+        } );
+    }
+
+    @Test
+    void escapeHTMLEntitiesEscapesABareAmpersand() {
+        assertEquals( "a&amp;b", TextUtil.escapeHTMLEntities( "a&b" ) );
+        assertEquals( "a&amp;", TextUtil.escapeHTMLEntities( "a&" ) );
+        assertEquals( "&amp;", TextUtil.escapeHTMLEntities( "&" ) );
+    }
+
+    @Test
+    void escapeHTMLEntitiesRejectsAnEntityWithASpaceOrALateHash() {
+        assertEquals( "&amp;a b;", TextUtil.escapeHTMLEntities( "&a b;" ) );
+        assertEquals( "&amp;a#b;", TextUtil.escapeHTMLEntities( "&a#b;" ) );
+    }
+
+    @Test
+    void escapeHTMLEntitiesAcceptsAnEmptyNamedEntityAtTheEndOfTheText() {
+        assertEquals( "&;", TextUtil.escapeHTMLEntities( "&;" ) );
+    }
+
+    @Test
+    void native2AsciiKeepsPrintableAsciiAndEscapesTheBoundaries() {
+        assertEquals( " ~", TextUtil.native2Ascii( " ~" ) );
+        assertEquals( "\\u001F", TextUtil.native2Ascii( "\u001f" ) );
+        assertEquals( "\\u007F", TextUtil.native2Ascii( "\u007f" ) );
+    }
+
+    @Test
+    void native2AsciiWritesAllFourHexDigitsOfAWideCharacter() {
+        assertEquals( "\\u1234", TextUtil.native2Ascii( "ሴ" ) );
+        assertEquals( "\\uABCD", TextUtil.native2Ascii( "ꯍ" ) );
+        assertEquals( "caf\\u00E9", TextUtil.native2Ascii( "café" ) );
+    }
+
+    @Test
+    void toHexStringUsesTwoUpperCaseDigitsPerByte() {
+        assertEquals( "01023EFF", TextUtil.toHexString( new byte[] { 0x01, 0x02, 0x3E, ( byte )0xFF } ) );
+        assertEquals( "", TextUtil.toHexString( new byte[ 0 ] ) );
+    }
 }

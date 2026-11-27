@@ -22,6 +22,8 @@ import org.junit.jupiter.api.Test;
 import javax.crypto.SecretKey;
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.security.GeneralSecurityException;
+import javax.crypto.spec.SecretKeySpec;
 import static org.junit.jupiter.api.Assertions.*;
 
 class AesGcmCipherTest {
@@ -59,5 +61,19 @@ class AesGcmCipherTest {
     @Test void keyFromBase64RejectsWrongLength() {
         assertThrows( IllegalArgumentException.class,
             () -> AesGcmCipher.keyFromBase64( Base64.getEncoder().encodeToString( new byte[16] ) ) );  // 16 ≠ 32
+    }
+
+    private final AesGcmCipher cipher = new AesGcmCipher( new SecretKeySpec( new byte[ 32 ], "AES" ) );
+
+    @Test
+    void aTokenHoldingOnlyTheIvIsRejectedAsTooShort() {
+        final String token = Base64.getEncoder().encodeToString( new byte[ 12 ] );
+        final GeneralSecurityException e = assertThrows( GeneralSecurityException.class, () -> cipher.decrypt( token ) );
+        assertEquals( "credential token too short", e.getMessage() );
+    }
+
+    @Test
+    void anEmptyPlaintextRoundTrips() throws GeneralSecurityException {
+        assertEquals( "", cipher.decrypt( cipher.encrypt( "" ) ) );
     }
 }

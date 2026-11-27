@@ -212,4 +212,90 @@ class TrackedTextTest {
             assertEquals( t.text().replace( "#", "" ), fromSpans.toString() );
         }
     }
+
+    @Test
+    void anEmptySourceHasNoSegments() {
+        assertEquals( "TrackedText[0 of 0 chars, 0 segments]", TrackedText.of( "" ).toString() );
+        assertEquals( "TrackedText[3 of 3 chars, 1 segments]", TrackedText.of( "abc" ).toString() );
+    }
+
+    @Test
+    void anEmptyLiteralHasNoSegmentsAndANonEmptyOneHasOne() {
+        final TrackedText src = TrackedText.of( "abc" );
+        assertEquals( "TrackedText[0 of 3 chars, 0 segments]", TrackedText.literal( "", src, 1 ).toString() );
+        assertEquals( "TrackedText[1 of 3 chars, 1 segments]", TrackedText.literal( "x", src, 1 ).toString() );
+    }
+
+    @Test
+    void aLiteralMayBeAnchoredAtTheEndOfTheSourceButNotBeyond() {
+        final TrackedText src = TrackedText.of( "abc" );
+        assertEquals( 3, TrackedText.literal( "x", src, 3 ).toSource( 0 ) );
+        assertThrows( IndexOutOfBoundsException.class, () -> TrackedText.literal( "x", src, 4 ) );
+        assertThrows( IndexOutOfBoundsException.class, () -> TrackedText.literal( "x", src, -1 ) );
+    }
+
+    @Test
+    void contiguousCopiesMergeIntoOneSegment() {
+        final TrackedText t = TrackedText.of( "abcdef" ).builder().copy( 0, 2 ).copy( 2, 4 ).build();
+        assertEquals( "TrackedText[4 of 6 chars, 1 segments]", t.toString() );
+    }
+
+    @Test
+    void copiesWithACutBetweenThemStaySeparateSegments() {
+        final TrackedText t = TrackedText.of( "abcdef" ).builder().copy( 0, 2 ).copy( 3, 5 ).build();
+        assertEquals( "TrackedText[4 of 6 chars, 2 segments]", t.toString() );
+        assertEquals( "abde", t.text() );
+    }
+
+    @Test
+    void anEmptyCopyAddsNothing() {
+        final TrackedText t = TrackedText.of( "abcdef" ).builder().copy( 0, 2 ).copy( 3, 3 ).build();
+        assertEquals( "TrackedText[2 of 6 chars, 1 segments]", t.toString() );
+        assertEquals( 2, t.toSourceEnd( 2 ) );
+    }
+
+    @Test
+    void aCopyEndingWhereALaterSegmentStartsDoesNotPickThatSegmentUp() {
+        final TrackedText cut = TrackedText.of( "abcdef" ).builder().copy( 0, 2 ).copy( 4, 6 ).build();
+        final TrackedText again = cut.builder().copy( 0, 2 ).build();
+        assertEquals( "TrackedText[2 of 6 chars, 1 segments]", again.toString() );
+    }
+
+    @Test
+    void insertedTextIsNotMergedWithCopiedTextButSuccessiveInsertsAtOneAnchorAre() {
+        final TrackedText t = TrackedText.of( "abcd" ).builder().copy( 0, 2 ).insert( "X" ).insert( "Y" ).copy( 2, 4 ).build();
+        assertEquals( "abXYcd", t.text() );
+        assertEquals( "TrackedText[6 of 4 chars, 3 segments]", t.toString() );
+    }
+
+    @Test
+    void sourceSpansListEachCopiedRunAndSkipWhatWasCut() {
+        final TrackedText t = TrackedText.of( "abcdef" ).builder().copy( 0, 2 ).copy( 4, 6 ).build();
+        assertEquals( "abef", t.text() );
+        final List< int[] > all = t.sourceSpans( 0, 4 );
+        assertEquals( 2, all.size() );
+        assertArrayEquals( new int[] { 0, 2 }, all.get( 0 ) );
+        assertArrayEquals( new int[] { 4, 6 }, all.get( 1 ) );
+        final List< int[] > middle = t.sourceSpans( 1, 3 );
+        assertEquals( 2, middle.size() );
+        assertArrayEquals( new int[] { 1, 2 }, middle.get( 0 ) );
+        assertArrayEquals( new int[] { 4, 5 }, middle.get( 1 ) );
+    }
+
+    @Test
+    void sourceSpansStopAtTheEndOfTheRequestedRange() {
+        final TrackedText t = TrackedText.of( "abcdef" ).builder().copy( 0, 2 ).copy( 4, 6 ).build();
+        final List< int[] > first = t.sourceSpans( 0, 2 );
+        assertEquals( 1, first.size() );
+        assertArrayEquals( new int[] { 0, 2 }, first.get( 0 ) );
+        assertEquals( 0, t.sourceSpans( 2, 2 ).size() );
+    }
+
+    @Test
+    void sourceSpansJoinRunsSeparatedOnlyByAnInsertion() {
+        final TrackedText t = TrackedText.of( "abcd" ).builder().copy( 0, 2 ).insert( "X" ).copy( 2, 4 ).build();
+        final List< int[] > spans = t.sourceSpans( 0, 5 );
+        assertEquals( 1, spans.size() );
+        assertArrayEquals( new int[] { 0, 4 }, spans.get( 0 ) );
+    }
 }

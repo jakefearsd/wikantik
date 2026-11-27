@@ -28,12 +28,12 @@ import org.mockito.Mockito;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import org.mockito.ArgumentCaptor;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
-
 
 public class HttpUtilTest {
 
@@ -253,7 +253,7 @@ public class HttpUtilTest {
     public void testCreateETag() {
         Date now = new Date();
         String tag = HttpUtil.createETag( "TestPage", now );
-        assertNotNull( tag );
+        assertEquals( Long.toString( "TestPage".hashCode() ^ now.getTime() ), tag );
         // Should be deterministic for same inputs
         assertEquals( tag, HttpUtil.createETag( "TestPage", now ) );
         // Different page names should produce different ETags
@@ -386,4 +386,203 @@ public class HttpUtilTest {
             cookie.getName().equals( "myCookie" ) && cookie.getMaxAge() == 0 ) );
     }
 
+    private static HttpServletRequest requestFrom( final String remoteAddr ) {
+        final HttpServletRequest req = mock( HttpServletRequest.class );
+        when( req.getRemoteAddr() ).thenReturn( remoteAddr );
+        return req;
+    }
+
+    // ---- ipIsInRange
+
+    @Test
+    void ipIsInRangeAcceptsAnAddressInsideACidrRange() {
+        assertTrue( HttpUtil.ipIsInRange( requestFrom( "10.1.2.3" ), "10.1.0.0/16" ) );
+    }
+
+    @Test
+    void ipIsInRangeRefusesAnAddressOutsideACidrRange() {
+        assertFalse( HttpUtil.ipIsInRange( requestFrom( "10.2.2.3" ), "10.1.0.0/16" ) );
+    }
+
+    @Test
+    void ipIsInRangeComparesAPlainAddressForEquality() {
+        assertTrue( HttpUtil.ipIsInRange( requestFrom( "192.168.1.5" ), "192.168.1.5" ) );
+        assertFalse( HttpUtil.ipIsInRange( requestFrom( "192.168.1.6" ), "192.168.1.5" ) );
+    }
+
+    // ---- getRemoteAddress
+
+    @Test
+    void getRemoteAddressTakesTheFirstAddressOfAForwardedList() {
+        final HttpServletRequest req = requestFrom( "127.0.0.1" );
+        when( req.getHeader( "X-Forwarded-For" ) ).thenReturn( "1.2.3.4, 5.6.7.8" );
+        assertEquals( "1.2.3.4", HttpUtil.getRemoteAddress( req ) );
+    }
+
+    // ---- ETag and conditional GET
+
+    @Test
+    void createETagXorsTheNameHashWithTheModificationTime() {
+        // "A".hashCode() == 65; 65 ^ 3 == 66 (an AND would give 1, an OR 67)
+        assertEquals( "66", HttpUtil.createETag( "A", new Date( 3L ) ) );
+    }
+
+    @Test
+    void anIfModifiedSinceDateHeaderAtOrAfterTheModificationTimeIsNotModified() {
+        final HttpServletRequest req = mock( HttpServletRequest.class );
+        when( req.getDateHeader( "If-Modified-Since" ) ).thenReturn( 2_000L );
+        assertTrue( HttpUtil.checkFor304( req, "Page", new Date( 1_000L ) ) );
+        assertTrue( HttpUtil.checkFor304( req, "Page", new Date( 2_000L ) ) );
+    }
+
+    @Test
+    void anIfModifiedSinceDateHeaderBeforeTheModificationTimeIsModified() {
+        final HttpServletRequest req = mock( HttpServletRequest.class );
+        when( req.getDateHeader( "If-Modified-Since" ) ).thenReturn( 1_000L );
+        assertFalse( HttpUtil.checkFor304( req, "Page", new Date( 2_000L ) ) );
+    }
+
+    @Test
+    void aMalformedIfModifiedSinceHeaderMeansModified() {
+        final HttpServletRequest req = mock( HttpServletRequest.class );
+        when( req.getDateHeader( "If-Modified-Since" ) ).thenThrow( new IllegalArgumentException( "bad date" ) );
+        assertFalse( HttpUtil.checkFor304( req, "Page", new Date( 2_000L ) ) );
+    }
+
+    @Test
+    void noIfModifiedSinceHeaderAtAllMeansModified() {
+        final HttpServletRequest req = mock( HttpServletRequest.class );
+        when( req.getDateHeader( "If-Modified-Since" ) ).thenReturn( -1L );
+        assertFalse( HttpUtil.checkFor304( req, "Page", new Date( 2_000L ) ) );
+    }
+
+    @Test
+    void anRfcIfModifiedSinceStringAfterTheModificationTimeIsNotModified() {
+        final HttpServletRequest req = mock( HttpServletRequest.class );
+        when( req.getDateHeader( "If-Modified-Since" ) ).thenReturn( -1L );
+        when( req.getHeader( "If-Modified-Since" ) ).thenReturn( "Wed, 21 Oct 2015 07:28:00 GMT" );
+        assertTrue( HttpUtil.checkFor304( req, "Page", new Date( 0L ) ) );
+    }
+
+    @Test
+    void anRfcIfModifiedSinceStringBeforeTheModificationTimeIsModified() {
+        final HttpServletRequest req = mock( HttpServletRequest.class );
+        when( req.getDateHeader( "If-Modified-Since" ) ).thenReturn( -1L );
+        when( req.getHeader( "If-Modified-Since" ) ).thenReturn( "Wed, 21 Oct 2015 07:28:00 GMT" );
+        assertFalse( HttpUtil.checkFor304( req, "Page", new Date( 2_000_000_000_000L ) ) );
+    }
+
+    @Test
+    void anUnparseableIfModifiedSinceStringMeansModified() {
+        final HttpServletRequest req = mock( HttpServletRequest.class );
+        when( req.getDateHeader( "If-Modified-Since" ) ).thenReturn( -1L );
+        when( req.getHeader( "If-Modified-Since" ) ).thenReturn( "yesterday-ish" );
+        assertFalse( HttpUtil.checkFor304( req, "Page", new Date( 0L ) ) );
+    }
+
+    @Test
+    void cacheControlNoCacheDefeatsAMatchingETag() {
+        final Date modified = new Date( 5_000L );
+        final HttpServletRequest req = mock( HttpServletRequest.class );
+        when( req.getHeader( "If-None-Match" ) ).thenReturn( HttpUtil.createETag( "Page", modified ) );
+        assertTrue( HttpUtil.checkFor304( req, "Page", modified ) );
+        when( req.getHeader( "cache-control" ) ).thenReturn( "no-cache" );
+        assertFalse( HttpUtil.checkFor304( req, "Page", modified ) );
+    }
+
+    // ---- safeGetQueryString
+
+    private static String queryOf( final String query ) {
+        final HttpServletRequest req = mock( HttpServletRequest.class );
+        when( req.getQueryString() ).thenReturn( query );
+        return HttpUtil.safeGetQueryString( req, StandardCharsets.UTF_8 );
+    }
+
+    @Test
+    void safeGetQueryStringRemovesThePageParameterAtTheStart() {
+        assertEquals( "a=b", queryOf( "page=Foo&a=b" ) );
+    }
+
+    @Test
+    void safeGetQueryStringRemovesThePageParameterInTheMiddle() {
+        assertEquals( "x=1&y=2", queryOf( "x=1&page=Foo&y=2" ) );
+    }
+
+    @Test
+    void safeGetQueryStringRemovesALonePageParameter() {
+        assertEquals( "", queryOf( "page=Foo" ) );
+    }
+
+    // ---- isIPV4Address
+
+    @Test
+    void isIPV4AddressRecognisesTheDigitZeroAndNine() {
+        assertTrue( HttpUtil.isIPV4Address( "0.0.0.0" ) );
+        assertTrue( HttpUtil.isIPV4Address( "9.9.9.9" ) );
+        assertTrue( HttpUtil.isIPV4Address( "255.255.255.255" ) );
+    }
+
+    @Test
+    void isIPV4AddressRefusesEmptyNullAndEdgeDots() {
+        assertFalse( HttpUtil.isIPV4Address( "" ) );
+        assertFalse( HttpUtil.isIPV4Address( null ) );
+        assertFalse( HttpUtil.isIPV4Address( ".1.2.3" ) );
+        assertFalse( HttpUtil.isIPV4Address( "1.2.3." ) );
+    }
+
+    @Test
+    void isIPV4AddressRefusesTwoDotsInARow() {
+        assertFalse( HttpUtil.isIPV4Address( "1..2.3" ) );
+    }
+
+    @Test
+    void isIPV4AddressRefusesCharactersAdjacentToTheDigitRange() {
+        assertFalse( HttpUtil.isIPV4Address( "/.1.2.3" ) );
+        assertFalse( HttpUtil.isIPV4Address( ":.1.2.3" ) );
+        assertFalse( HttpUtil.isIPV4Address( "1.2.3.a" ) );
+    }
+
+    @Test
+    void isIPV4AddressRefusesAnOctetOverTwoFiftyFive() {
+        assertFalse( HttpUtil.isIPV4Address( "256.1.1.1" ) );
+    }
+
+    // ---- clearCookie
+
+    @Test
+    void clearCookieExpiresTheCookieAndKeepsItHttpOnlySecureAndSameSiteStrict() {
+        final HttpServletResponse response = mock( HttpServletResponse.class );
+        HttpUtil.clearCookie( response, "sid" );
+        final ArgumentCaptor< Cookie > captor = ArgumentCaptor.forClass( Cookie.class );
+        verify( response ).addCookie( captor.capture() );
+        final Cookie cookie = captor.getValue();
+        assertEquals( "sid", cookie.getName() );
+        assertEquals( "", cookie.getValue() );
+        assertEquals( 0, cookie.getMaxAge() );
+        assertTrue( cookie.isHttpOnly() );
+        assertTrue( cookie.getSecure() );
+        assertEquals( "Strict", cookie.getAttribute( "SameSite" ) );
+    }
+
+    // ---- getAbsoluteUrl
+
+    private static HttpServletRequest direct( final String scheme, final int port ) {
+        final HttpServletRequest req = mock( HttpServletRequest.class );
+        when( req.getScheme() ).thenReturn( scheme );
+        when( req.getServerName() ).thenReturn( "wiki.example" );
+        when( req.getServerPort() ).thenReturn( port );
+        return req;
+    }
+
+    @Test
+    void getAbsoluteUrlOmitsTheDefaultPortOfEachScheme() {
+        assertEquals( "http://wiki.example/p", HttpUtil.getAbsoluteUrl( direct( "http", 80 ), "/p" ) );
+        assertEquals( "https://wiki.example/p", HttpUtil.getAbsoluteUrl( direct( "https", 443 ), "/p" ) );
+    }
+
+    @Test
+    void getAbsoluteUrlKeepsANonDefaultPort() {
+        assertEquals( "http://wiki.example:8080/p", HttpUtil.getAbsoluteUrl( direct( "http", 8080 ), "/p" ) );
+        assertEquals( "https://wiki.example:8443/p", HttpUtil.getAbsoluteUrl( direct( "https", 8443 ), "/p" ) );
+    }
 }

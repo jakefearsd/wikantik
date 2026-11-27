@@ -21,6 +21,7 @@ package com.wikantik.util;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import java.time.Duration;
 
 
 public class TimedCounterListTest
@@ -45,26 +46,90 @@ public class TimedCounterListTest
     }
 
     @Test
-    public void testCleanup()
+    public void testCleanup() throws InterruptedException
     {
-        try
-        {
-            Thread.sleep(110);
+        Thread.sleep(110);
 
-            m_list.cleanup(100);
+        m_list.cleanup(100);
 
-            Assertions.assertEquals( 0, m_list.count( "Foo" ), "Foo" );
-            Assertions.assertEquals( 0, m_list.count( "Foo" ), "Bar" );
-            Assertions.assertEquals( 0, m_list.count( "Foo" ), "Baz" );
+        Assertions.assertEquals( 0, m_list.count( "Foo" ), "Foo" );
+        Assertions.assertEquals( 0, m_list.count( "Bar" ), "Bar" );
+        Assertions.assertEquals( 0, m_list.count( "Baz" ), "Baz" );
 
-            Assertions.assertEquals( 0, m_list.size(), "size" );
-        }
-        catch( final InterruptedException e )
-        {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
-
+        Assertions.assertEquals( 0, m_list.size(), "size" );
     }
 
+    @Test
+    void setReturnsThePreviousElementAndReplacesIt() {
+        final TimedCounterList< String > list = new TimedCounterList<>();
+        list.add( "a" );
+        list.add( "b" );
+        Assertions.assertEquals( "a", list.set( 0, "z" ) );
+        Assertions.assertEquals( "z", list.get( 0 ) );
+        Assertions.assertEquals( "b", list.get( 1 ) );
+        Assertions.assertEquals( 2, list.size() );
+    }
+
+    @Test
+    void removeReturnsTheRemovedElementAndShrinksTheList() {
+        final TimedCounterList< String > list = new TimedCounterList<>();
+        list.add( "a" );
+        list.add( "b" );
+        Assertions.assertEquals( "a", list.remove( 0 ) );
+        Assertions.assertEquals( 1, list.size() );
+        Assertions.assertEquals( "b", list.get( 0 ) );
+    }
+
+    @Test
+    void sizeCountsEveryElement() {
+        final TimedCounterList< String > list = new TimedCounterList<>();
+        Assertions.assertEquals( 0, list.size() );
+        list.add( "a" );
+        list.add( "a" );
+        Assertions.assertEquals( 2, list.size() );
+    }
+
+    @Test
+    void cleanupRemovesOnlyItemsOlderThanTheMaximumAge() throws InterruptedException {
+        final TimedCounterList< String > list = new TimedCounterList<>();
+        list.add( "old" );
+        Thread.sleep( 120 );
+        list.add( "new" );
+        list.cleanup( 100 );
+        Assertions.assertEquals( 1, list.size() );
+        Assertions.assertEquals( "new", list.get( 0 ) );
+    }
+
+    @Test
+    void cleanupKeepsEverythingWhenNothingIsOldEnough() {
+        final TimedCounterList< String > list = new TimedCounterList<>();
+        list.add( "a" );
+        list.add( "b" );
+        list.cleanup( 60_000 );
+        Assertions.assertEquals( 2, list.size() );
+    }
+
+    /** Every operation must release its lock: another thread must still be able to use the list afterwards. */
+    @Test
+    void noOperationLeavesTheListLockedForOtherThreads() {
+        final TimedCounterList< String > list = new TimedCounterList<>();
+        list.add( "a" );
+        list.add( 0, "b" );
+        list.set( 0, "c" );
+        list.get( 0 );
+        list.size();
+        list.count( "c" );
+        list.cleanup( 60_000 );
+        list.remove( 1 );
+        Assertions.assertTimeoutPreemptively( Duration.ofSeconds( 5 ), () -> {
+            final int[] seen = new int[ 1 ];
+            final Thread other = new Thread( () -> {
+                list.add( "x" );
+                seen[ 0 ] = list.size();
+            } );
+            other.start();
+            other.join();
+            Assertions.assertEquals( 2, seen[ 0 ] );
+        } );
+    }
 }

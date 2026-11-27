@@ -39,20 +39,18 @@ public class ClassUtilTest
     @Test
     public void testClasspathSearch() {
         final List< String > jarSearch = ClassUtil.classpathEntriesUnder( "META-INF" );
-        Assertions.assertNotNull( jarSearch );
-        Assertions.assertTrue( jarSearch.size() > 0 );
+        Assertions.assertFalse( jarSearch.isEmpty(), "META-INF is found inside jars" );
+        Assertions.assertTrue( jarSearch.stream().allMatch( e -> e.startsWith( "META-INF" ) ), jarSearch.toString() );
 
         final List< String > fileSearch = ClassUtil.classpathEntriesUnder( "templates" );
-        Assertions.assertNotNull( fileSearch );
-        Assertions.assertTrue( fileSearch.size() > 0 );
+        Assertions.assertFalse( fileSearch.isEmpty(), "templates is found as a directory" );
+        Assertions.assertTrue( fileSearch.stream().allMatch( e -> e.startsWith( "templates/" ) ), fileSearch.toString() );
 
         final List< String > nullSearch = ClassUtil.classpathEntriesUnder( "blurb" );
-        Assertions.assertNotNull( nullSearch );
-        Assertions.assertEquals( 0, nullSearch.size() );
+        Assertions.assertEquals( List.of(), nullSearch );
 
         final List< String > nullInputSearch = ClassUtil.classpathEntriesUnder( null );
-        Assertions.assertNotNull( nullInputSearch );
-        Assertions.assertEquals( 0, nullSearch.size() );
+        Assertions.assertEquals( List.of(), nullInputSearch );
     }
 
     /**
@@ -113,8 +111,8 @@ public class ClassUtilTest
     @Test
     public void testBuildInstanceWithPackage() throws Exception {
         Object obj = ClassUtil.buildInstance( "java.util", "ArrayList" );
-        assertNotNull( obj );
-        assertTrue( obj instanceof List );
+        assertEquals( java.util.ArrayList.class, obj.getClass() );
+        assertTrue( ( ( List< ? > )obj ).isEmpty() );
     }
 
     @Test
@@ -182,8 +180,7 @@ public class ClassUtilTest
     @Test
     public void testGetExtraClassMappings() {
         Map< String, String > extra = ClassUtil.getExtraClassMappings();
-        assertNotNull( extra );
-        // Should be a map (possibly empty if classmappings-extra.xml is not present or has no entries)
+        assertThrows( UnsupportedOperationException.class, () -> extra.put( "k", "v" ), "the view must be read-only" );
     }
 
 }

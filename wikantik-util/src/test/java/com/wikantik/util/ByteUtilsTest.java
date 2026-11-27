@@ -23,6 +23,9 @@ import java.util.Arrays;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 
 public class ByteUtilsTest {
@@ -54,4 +57,38 @@ public class ByteUtilsTest {
         Assertions.assertEquals("7f", ByteUtils.byte2hex((byte)127));
     }
 
+    @ParameterizedTest
+    @CsvSource( { "0,0", "9,9", "A,10", "F,15", "a,10", "f,15" } )
+    void hexDigitsMapToTheirValueAtBothEdgesOfEachRange( final char c, final int expected ) {
+        Assertions.assertEquals( expected, ByteUtils.hexToBin( c ) );
+    }
+
+    @ParameterizedTest
+    @ValueSource( chars = { '/', ':', '@', 'G', '`', 'g', ' ' } )
+    void charactersJustOutsideTheHexRangesAreRefused( final char c ) {
+        Assertions.assertEquals( -1, ByteUtils.hexToBin( c ) );
+    }
+
+    @ParameterizedTest
+    @ValueSource( strings = { "g0", "0g", "0G", "@0", "0:", "0/" } )
+    void aNonHexCharacterInEitherNibbleIsRefused( final String hex ) {
+        Assertions.assertThrows( IllegalArgumentException.class, () -> ByteUtils.parseHexBinary( hex ) );
+    }
+
+    @ParameterizedTest
+    @ValueSource( strings = { "1", "111", "abcde" } )
+    void anOddLengthIsRefused( final String hex ) {
+        Assertions.assertThrows( IllegalArgumentException.class, () -> ByteUtils.parseHexBinary( hex ) );
+    }
+
+    @ParameterizedTest
+    @CsvSource( { "00,0", "0f,15", "F0,-16", "ff,-1", "A5,-91" } )
+    void aByteIsHighNibbleTimesSixteenPlusLowNibble( final String hex, final int expected ) {
+        Assertions.assertArrayEquals( new byte[] { ( byte )expected }, ByteUtils.parseHexBinary( hex ) );
+    }
+
+    @org.junit.jupiter.api.Test
+    void anEmptyStringParsesToNoBytes() {
+        Assertions.assertArrayEquals( new byte[ 0 ], ByteUtils.parseHexBinary( "" ) );
+    }
 }

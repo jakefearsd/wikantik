@@ -62,8 +62,9 @@ public final class HttpUtil {
         String realIP = StringUtils.isNotEmpty ( req.getHeader( "X-Forwarded-For" ) ) ? req.getHeader( "X-Forwarded-For" ) :
                                                                                           req.getRemoteAddr();
         // can be a comma-separated list of IPs
-        if (realIP.contains(","))
-                realIP = realIP.substring(realIP.indexOf(','));
+        if( realIP.contains( "," ) ) {
+            realIP = realIP.substring( 0, realIP.indexOf( ',' ) ).trim();
+        }
 
         return realIP;
 	

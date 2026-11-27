@@ -127,6 +127,7 @@ public final class CryptoUtil {
             System.out.println( "   --hash   password algorithm             create hash for password" );
             System.out.println( "   --verify password digest algorithm      verify password for digest" );
             System.out.println( "Valid algorithm options are {SHA-256}. If no algorithm is specified or an unsupported algorithm is specified, SHA-256 is used." );
+            return;
         }
 
         if( HASH.equals( args[0] ) ) {

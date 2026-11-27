@@ -22,7 +22,6 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
-import java.io.OutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
@@ -31,19 +30,8 @@ public class CryptoUtilTest {
 
     @Test
     public void testCommandLineHash() throws Exception {
-        // Save old printstream
-        final PrintStream oldOut = System.out;
+        final String output = runMain( "--hash", "password" );
 
-        // Swallow System out and get command output
-        final OutputStream out = new ByteArrayOutputStream();
-        System.setOut( new PrintStream( out ) );
-        CryptoUtil.main( new String[]{ "--hash", "password" } );
-        final String output = out.toString();
-
-        // Restore old printstream
-        System.setOut( oldOut );
-
-        // Run our tests
         Assertions.assertTrue( output.startsWith( "{SHA-256}" ) );
     }
 
@@ -70,20 +58,8 @@ public class CryptoUtilTest {
     public void testCommandLineNoVerify() throws Exception {
         final String digest = CryptoUtil.getSaltedPassword( "testing123".getBytes( StandardCharsets.UTF_8 ), "{SHA-256}" );
 
-        // Save old printstream
-        final PrintStream oldOut = System.out;
+        final String output = runMain( "--verify", "wrongpassword", digest );
 
-        // Swallow System out and get command output
-        final OutputStream out = new ByteArrayOutputStream();
-        System.setOut( new PrintStream( out ) );
-        // Supply a bogus password
-        CryptoUtil.main( new String[]{ "--verify", "wrongpassword", digest } );
-        final String output = out.toString();
-
-        // Restore old printstream
-        System.setOut( oldOut );
-
-        // Run our tests
         Assertions.assertTrue( output.startsWith( "false" ) );
     }
 
@@ -97,19 +73,8 @@ public class CryptoUtilTest {
     public void testCommandLineVerify() throws Exception {
         final String digest = CryptoUtil.getSaltedPassword( "testing123".getBytes( StandardCharsets.UTF_8 ), "{SHA-256}" );
 
-        // Save old printstream
-        final PrintStream oldOut = System.out;
+        final String output = runMain( "--verify", "testing123", digest );
 
-        // Swallow System out and get command output
-        final OutputStream out = new ByteArrayOutputStream();
-        System.setOut( new PrintStream( out ) );
-        CryptoUtil.main( new String[]{ "--verify", "testing123", digest } );
-        final String output = out.toString();
-
-        // Restore old printstream
-        System.setOut( oldOut );
-
-        // Run our tests
         Assertions.assertTrue( output.startsWith( "true" ) );
     }
 
@@ -166,4 +131,91 @@ public class CryptoUtilTest {
                 () -> CryptoUtil.getSaltedPassword( "testing123".getBytes( StandardCharsets.UTF_8 ), "{SSHA}" ) );
     }
 
+    // ---- extractPasswordHash / extractSalt
+
+    @Test
+    void extractPasswordHashAcceptsADigestExactlyAsLongAsTheHash() {
+        final byte[] digest = new byte[ 32 ];
+        digest[ 31 ] = 7;
+        final byte[] hash = CryptoUtil.extractPasswordHash( digest, 32 );
+        Assertions.assertEquals( 32, hash.length );
+        Assertions.assertEquals( 7, hash[ 31 ] );
+    }
+
+    @Test
+    void extractPasswordHashRefusesADigestShorterThanTheHash() {
+        Assertions.assertThrows( IllegalArgumentException.class, () -> CryptoUtil.extractPasswordHash( new byte[ 31 ], 32 ) );
+    }
+
+    @Test
+    void extractPasswordHashTakesOnlyTheLeadingBytes() {
+        Assertions.assertArrayEquals( new byte[] { 1, 2 }, CryptoUtil.extractPasswordHash( new byte[] { 1, 2, 3, 4 }, 2 ) );
+    }
+
+    @Test
+    void extractSaltRefusesADigestWithNoBytesBeyondTheHash() {
+        Assertions.assertThrows( IllegalArgumentException.class, () -> CryptoUtil.extractSalt( new byte[ 32 ], 32 ) );
+        Assertions.assertThrows( IllegalArgumentException.class, () -> CryptoUtil.extractSalt( new byte[ 10 ], 32 ) );
+    }
+
+    @Test
+    void extractSaltAcceptsASingleByteOfSalt() {
+        Assertions.assertArrayEquals( new byte[] { 9 }, CryptoUtil.extractSalt( new byte[] { 1, 2, 9 }, 2 ) );
+    }
+
+    // ---- main
+
+    private static String runMain( final String... args ) throws Exception {
+        final PrintStream original = System.out;
+        final ByteArrayOutputStream captured = new ByteArrayOutputStream();
+        System.setOut( new PrintStream( captured, true, StandardCharsets.UTF_8 ) );
+        try {
+            CryptoUtil.main( args );
+        } finally {
+            System.setOut( original );
+        }
+        return captured.toString( StandardCharsets.UTF_8 );
+    }
+
+    @Test
+    void mainWithNoArgumentsPrintsUsageAndReturns() throws Exception {
+        final String out = runMain();
+        Assertions.assertTrue( out.contains( "Usage: CryptoUtil" ), out );
+        Assertions.assertTrue( out.contains( "--hash" ), out );
+        Assertions.assertTrue( out.contains( "--verify" ), out );
+    }
+
+    @Test
+    void mainHelpPrintsUsage() throws Exception {
+        Assertions.assertTrue( runMain( "--help" ).contains( "Usage: CryptoUtil" ) );
+    }
+
+    @Test
+    void mainHashPrintsASaltedDigestThatMainVerifyAccepts() throws Exception {
+        final String digest = runMain( "--hash", "secret" ).trim();
+        Assertions.assertTrue( digest.startsWith( "{SHA-256}" ), digest );
+        Assertions.assertEquals( "true", runMain( "--verify", "secret", digest ).trim() );
+        Assertions.assertEquals( "false", runMain( "--verify", "wrong", digest ).trim() );
+    }
+
+    @Test
+    void mainHashAcceptsAnExplicitAlgorithm() throws Exception {
+        Assertions.assertTrue( runMain( "--hash", "secret", "{SHA-256}" ).trim().startsWith( "{SHA-256}" ) );
+    }
+
+    @Test
+    void mainHashNeedsAPassword() {
+        Assertions.assertThrows( IllegalArgumentException.class, () -> runMain( "--hash" ) );
+    }
+
+    @Test
+    void mainVerifyNeedsPasswordAndDigest() {
+        Assertions.assertThrows( IllegalArgumentException.class, () -> runMain( "--verify" ) );
+        Assertions.assertThrows( IllegalArgumentException.class, () -> runMain( "--verify", "pw" ) );
+    }
+
+    @Test
+    void mainWithAnUnknownOptionSaysSo() throws Exception {
+        Assertions.assertTrue( runMain( "--bogus" ).contains( "Wrong usage" ) );
+    }
 }

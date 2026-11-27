@@ -518,4 +518,35 @@ class PropertyReaderTest {
             System.clearProperty( "wikantik.zz_probe.flag" );
         }
     }
+
+    @Test
+    void loadWebAppPropsExpandsPlaceholdersVariablesAndTheWorkDir( @TempDir final Path dir ) throws IOException {
+        final Path file = dir.resolve( "c.properties" );
+        Files.writeString( file, "wikantik.test.home=${user.dir}\nvar.base=/b\nwikantik.test.path=$base/z\n", StandardCharsets.UTF_8 );
+        final ServletContext context = mock( ServletContext.class );
+        when( context.getInitParameter( PropertyReader.PARAM_CUSTOMCONFIG ) ).thenReturn( file.toAbsolutePath().toString() );
+
+        final Properties props = PropertyReader.loadWebAppProps( context );
+
+        Assertions.assertNotNull( props );
+        Assertions.assertEquals( System.getProperty( "user.dir" ), props.getProperty( "wikantik.test.home" ) );
+        Assertions.assertEquals( "/b/z", props.getProperty( "wikantik.test.path" ) );
+        Assertions.assertEquals( System.getProperty( "java.io.tmpdir" ), props.getProperty( "wikantik.workDir" ) );
+    }
+
+    @Test
+    void expansionOfAPlaceholderRunsToTheClosingBraceNotBeyond() {
+        final Properties props = new Properties();
+        props.setProperty( "wikantik.test.v", "a${user.dir}b}" );
+        PropertyReader.propertyExpansion( props );
+        Assertions.assertEquals( "a" + System.getProperty( "user.dir" ) + "b}", props.getProperty( "wikantik.test.v" ) );
+    }
+
+    @Test
+    void anUnresolvablePlaceholderIsLeftAsWritten() {
+        final Properties props = new Properties();
+        props.setProperty( "wikantik.test.v", "x${no.such.thing.anywhere}y" );
+        PropertyReader.propertyExpansion( props );
+        Assertions.assertEquals( "x${no.such.thing.anywhere}y", props.getProperty( "wikantik.test.v" ) );
+    }
 }

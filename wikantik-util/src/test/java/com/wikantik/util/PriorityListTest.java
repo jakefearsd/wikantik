@@ -112,4 +112,26 @@ public class PriorityListTest
         Assertions.assertEquals( "One", p.get(5), "2: One" );
     }
 
+    @Test
+    void addWithoutPriorityUsesTheDefaultPriorityAndReportsTrue() {
+        final PriorityList< String > list = new PriorityList<>();
+        list.add( "high", 5 );
+        list.add( "low", -5 );
+        Assertions.assertTrue( list.add( "default" ) );
+        Assertions.assertEquals( 3, list.size() );
+        Assertions.assertEquals( "high", list.get( 0 ) );
+        Assertions.assertEquals( "default", list.get( 1 ) );
+        Assertions.assertEquals( "low", list.get( 2 ) );
+    }
+
+    @Test
+    void addWithoutPriorityKeepsInsertionOrderAmongEqualPriorities() {
+        final PriorityList< String > list = new PriorityList<>();
+        list.add( "one" );
+        list.add( "two", PriorityList.DEFAULT_PRIORITY );
+        list.add( "three" );
+        Assertions.assertEquals( "one", list.get( 0 ) );
+        Assertions.assertEquals( "two", list.get( 1 ) );
+        Assertions.assertEquals( "three", list.get( 2 ) );
+    }
 }

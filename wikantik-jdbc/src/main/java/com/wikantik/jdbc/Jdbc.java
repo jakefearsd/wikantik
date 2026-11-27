@@ -94,7 +94,10 @@ public final class Jdbc {
         }
     }
 
-    /** Runs {@code sql} expecting at most one row; empty {@link Optional} if none matched. */
+    /**
+     * Runs {@code sql} expecting at most one row; empty {@link Optional} if none matched or the mapper returned null
+     * (an aggregate over no rows, {@code SELECT MAX(x)}, is one row holding NULL).
+     */
     public < T > Optional< T > queryOne( final String sql, final SqlBinder binder, final RowMapper< T > mapper )
             throws SQLException {
         try ( Connection conn = dataSource.getConnection() ) {
@@ -108,7 +111,7 @@ public final class Jdbc {
         try ( PreparedStatement ps = conn.prepareStatement( sql ) ) {
             binder.bind( ps );
             try ( ResultSet rs = ps.executeQuery() ) {
-                return rs.next() ? Optional.of( mapper.map( rs ) ) : Optional.empty();
+                return rs.next() ? Optional.ofNullable( mapper.map( rs ) ) : Optional.empty();
             }
         }
     }

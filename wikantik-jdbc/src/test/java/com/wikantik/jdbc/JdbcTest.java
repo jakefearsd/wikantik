@@ -78,6 +78,14 @@ class JdbcTest {
     }
 
     @Test
+    void queryOneTreatsANullMappingAsNoValue() throws SQLException {
+        // An aggregate over no rows is one row holding NULL (SELECT MAX(...) on an empty table).
+        final Optional< String > none = jdbc.queryOne( "SELECT MAX(name) FROM t", SqlBinder.NONE,
+            rs -> rs.getString( 1 ) );
+        assertEquals( Optional.empty(), none );
+    }
+
+    @Test
     void queryOneFindsAndMisses() throws SQLException {
         jdbc.update( "INSERT INTO t (id, name) VALUES (?, ?)",
             ps -> { ps.setInt( 1, 1 ); ps.setString( 2, "alice" ); } );

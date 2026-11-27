@@ -61,7 +61,8 @@ import static org.mockito.Mockito.when;
 @RequiresPostgres
 class WorkMcpFlowPostgresTest {
 
-    private static final String NEEDS_KEY = "This endpoint needs a work API key.";
+    private static final String UNUSABLE = "This agent has no sponsor or was retired, so it can do nothing. "
+        + "A wiki admin or a project lead must take it over.";
 
     private WorkMcpFixture f;
     private List< WorkMcpTool > tools;
@@ -272,8 +273,8 @@ class WorkMcpFlowPostgresTest {
 
         f.svc.registry().retireAgent( f.admin, f.builder.id() );
 
-        assertEquals( NEEDS_KEY, WorkMcpFixture.text( call( f.builder, "comment_on_item", "key", key, "body", "still here?" ) ) );
-        assertEquals( NEEDS_KEY, WorkMcpFixture.text( call( f.builder, "get_item", "key", key ) ) );
+        assertEquals( UNUSABLE, WorkMcpFixture.text( call( f.builder, "comment_on_item", "key", key, "body", "still here?" ) ) );
+        assertEquals( UNUSABLE, WorkMcpFixture.text( call( f.builder, "get_item", "key", key ) ) );
         final List< String > log = events( key );
         final String last = log.get( log.size() - 1 );
         assertTrue( last.startsWith( "released|" ), last );

@@ -70,6 +70,15 @@ public final class WorkMcpActors {
     }
 
     /**
+     * Whether the context carries a verified agent token. Paired with a null {@link #actorFor} it means the token is
+     * valid but stands for no actor (the agent has no sponsor, its sponsor's account is gone, or it was retired),
+     * which is answered with {@link WorkMcpTool#AGENT_UNUSABLE}, not with {@link WorkMcpTool#NEEDS_KEY}.
+     */
+    public static boolean carriesAgentToken( final McpTransportContext context ) {
+        return context != null && context.get( AGENT_REF ) instanceof AgentTokenAuth.AgentRef;
+    }
+
+    /**
      * The actor the context's credential stands for: the agent an agent token names, or the owner, as a person, of a
      * personal work key. A key is never an agent.
      *

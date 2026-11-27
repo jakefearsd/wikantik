@@ -105,6 +105,37 @@ class WorkMcpActorsTest {
         assertEquals( "admin", actor.sponsor().login(), "the registrant stands behind it" );
     }
 
+    private static final String UNUSABLE = "This agent has no sponsor or was retired, so it can do nothing. "
+        + "A wiki admin or a project lead must take it over.";
+
+    private io.modelcontextprotocol.spec.McpSchema.CallToolResult dispatchAs( final long agentId, final WorkMcpTool tool,
+                                                                            final java.util.Map< String, Object > args ) {
+        return WorkMcpInitializer.dispatch( tool, f.svc, WorkMcpActors.extract( requestWith(
+            new com.wikantik.auth.apikeys.AgentTokenAuth.AgentRef( 5, agentId ) ) ), args );
+    }
+
+    @Test
+    void aValidTokenOfASponsorlessAgentIsToldWhyOnEveryTool() throws SQLException {
+        f.svc.registry().releaseSponsorship( f.admin, f.builder.id() );
+        assertEquals( UNUSABLE, WorkMcpFixture.text( dispatchAs( f.builder.id(),
+            new GetWorkContextTool( f.svc, f.directory() ), java.util.Map.of() ) ) );
+        assertEquals( UNUSABLE, WorkMcpFixture.text( dispatchAs( f.builder.id(),
+            new CommentOnItemTool( f.svc ), java.util.Map.of( "key", "PLAT-1", "body", "hello" ) ) ) );
+    }
+
+    @Test
+    void aValidTokenOfARetiredAgentIsToldWhy() throws SQLException {
+        f.svc.registry().retireAgent( f.admin, f.builder.id() );
+        assertEquals( UNUSABLE, WorkMcpFixture.text( dispatchAs( f.builder.id(),
+            new GetWorkContextTool( f.svc, f.directory() ), java.util.Map.of() ) ) );
+    }
+
+    @Test
+    void noCredentialIsStillTheNeedsKeyAnswer() {
+        assertEquals( WorkMcpTool.NEEDS_KEY, WorkMcpFixture.text( WorkMcpInitializer.dispatch(
+            new GetWorkContextTool( f.svc, f.directory() ), f.svc, McpTransportContext.EMPTY, java.util.Map.of() ) ) );
+    }
+
     @Test
     void anAgentRefForARetiredAgentIsNoActor() throws SQLException {
         f.svc.registry().retireAgent( f.admin, f.builder.id() );

@@ -48,6 +48,13 @@ public abstract class WorkMcpTool {
     /** The answer to a call whose key is not a work key (or is no longer one). */
     public static final String NEEDS_KEY = "This endpoint needs a work API key.";
 
+    /**
+     * The answer to every call made with a valid agent token that stands for no actor: the agent has no sponsor (or
+     * its sponsor's account is gone) or it was retired. Only the token's holder ever sees it.
+     */
+    public static final String AGENT_UNUSABLE = "This agent has no sponsor or was retired, so it can do nothing. "
+        + "A wiki admin or a project lead must take it over.";
+
     /** The answer for an item or project that is unknown or hidden from the caller: the two are not told apart. */
     public static final String NOT_FOUND = "Not found.";
 
@@ -154,6 +161,15 @@ public abstract class WorkMcpTool {
             LOG.warn( "Work tool {} threw {}", name(), e.getClass().getSimpleName(), e );
             return error( UNAVAILABLE );
         }
+    }
+
+    /**
+     * Answers a call whose agent token verified but resolved to no actor with {@link #AGENT_UNUSABLE}; nothing else
+     * happens, and a write tool leaves an {@code agent_unusable} refusal line.
+     */
+    public final McpSchema.CallToolResult refuseUnusableAgent( final Map< String, Object > args ) {
+        refused( null, args == null ? Map.of() : args, "agent_unusable" );
+        return error( AGENT_UNUSABLE );
     }
 
     private void refused( final Actor actor, final Map< String, Object > arguments, final String kind ) {

@@ -127,8 +127,6 @@ class GetWorkContextToolTest {
         }
     }
 
-    private static final String NO_SPONSOR = "Nobody sponsors you, so you can do nothing. "
-        + "A wiki admin or a project lead must take you over.";
     private static final String NO_PROJECT = "You are not a member of any project you can see. "
         + "Ask your sponsor to add you to a project (they must be a member of it too).";
     private static final String NO_QUEUE = "You serve no queue, so list_claimable is always empty. "
@@ -162,12 +160,20 @@ class GetWorkContextToolTest {
     }
 
     @Test
-    void agentWithoutSponsorIsToldFirst() throws SQLException {
+    void setupNeverCarriesASponsorHint() throws SQLException {
+        // A sponsorless agent never reaches a tool (the transport refuses it), so setup has no sponsor hint.
         final com.wikantik.work.Actor loner = agentActor( "loner", java.util.List.of() );
         f.svc.registry().releaseSponsorship( f.admin, loner.agentId() );
-        final java.util.List< String > hints = setup( loner );
-        assertTrue( hints.get( 0 ).startsWith( "Nobody sponsors you" ), hints.toString() );
-        assertEquals( java.util.List.of( NO_SPONSOR, NO_PROJECT, NO_QUEUE ), hints );
+        assertEquals( java.util.List.of( NO_PROJECT, NO_QUEUE ), setup( loner ) );
+    }
+
+    @Test
+    void anAgentServingOnlyARetiredQueueIsToldItServesNone() throws SQLException {
+        final com.wikantik.work.Actor a = agentActor( "second", java.util.List.of( "reviewer" ) );
+        f.svc.putMember( f.admin, "PLAT", "second", "agent", com.wikantik.work.WorkRole.MEMBER );
+        assertEquals( java.util.List.of(), setup( a ), "control: an active queue is served" );
+        f.svc.registry().retireQueue( f.admin, "reviewer" );
+        assertEquals( java.util.List.of( NO_QUEUE ), setup( a ) );
     }
 
     @Test

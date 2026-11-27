@@ -21,15 +21,18 @@ package com.wikantik.work.mcp;
 import com.wikantik.work.Actor;
 import com.wikantik.work.Agent;
 import com.wikantik.work.Item;
+import com.wikantik.work.Queue;
 import com.wikantik.work.WorkDirectory;
 import com.wikantik.work.WorkService;
 import io.modelcontextprotocol.spec.McpSchema;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 
 /**
@@ -45,11 +48,10 @@ public final class GetWorkContextTool extends WorkMcpTool {
             + "projects you were admitted to with your role in each, the items you currently hold a claim on, "
             + "and claimExpiryMinutes (how long a claim lasts before it lapses). Call this first. Returns "
             + "{agent, person, projects:[{key,name,role,activeSprint:{name,goal,startsOn,endsOn}|null}], claims:[{key,title,status,expiresAt}], "
-            + "claimExpiryMinutes, setup:[string]}. setup lists what stops an agent from working (no sponsor, no "
-            + "visible project, no queue) and is empty for a person or a well set-up agent." );
+            + "claimExpiryMinutes, setup:[string]}. setup lists what stops an agent from working (no visible "
+            + "project, no active queue) and is empty for a person or a well set-up agent. An agent with no sponsor, "
+            + "or a retired one, never gets this far: every call answers that it can do nothing." );
 
-    private static final String HINT_NO_SPONSOR = "Nobody sponsors you, so you can do nothing. "
-        + "A wiki admin or a project lead must take you over.";
     private static final String HINT_NO_PROJECT = "You are not a member of any project you can see. "
         + "Ask your sponsor to add you to a project (they must be a member of it too).";
     private static final String HINT_NO_QUEUE = "You serve no queue, so list_claimable is always empty. "
@@ -93,20 +95,32 @@ public final class GetWorkContextTool extends WorkMcpTool {
         }
         out.put( "claims", claims );
         out.put( "claimExpiryMinutes", svc.claims().claimExpiry().toMinutes() );
-        out.put( "setup", agent ? setupHints( self, projects.isEmpty() ) : List.of() );
+        out.put( "setup", agent ? setupHints( self, projects.isEmpty(), retiredQueues( actor ) ) : List.of() );
         return ok( out );
     }
 
-    /** What keeps an agent from working, in the order to fix it; describes only the agent itself. */
-    private static List< String > setupHints( final Agent self, final boolean noProject ) {
-        final List< String > hints = new ArrayList<>();
-        if ( self == null || self.sponsor() == null || self.sponsor().isBlank() ) {
-            hints.add( HINT_NO_SPONSOR );
+    /** The keys of retired queues the caller can see; an agent still lists a retired queue it served before. */
+    private Set< String > retiredQueues( final Actor actor ) throws SQLException {
+        final Set< String > retired = new HashSet<>();
+        for ( final Queue q : svc.registry().listQueues( actor ) ) {
+            if ( q.retiredAt() != null ) {
+                retired.add( q.key() );
+            }
         }
+        return retired;
+    }
+
+    /**
+     * What keeps an agent from working, in the order to fix it; describes only the agent itself. A sponsorless or
+     * retired agent is refused before any tool runs, so there is no sponsor hint. A retired queue is not served:
+     * nothing new can be routed to it.
+     */
+    private static List< String > setupHints( final Agent self, final boolean noProject, final Set< String > retired ) {
+        final List< String > hints = new ArrayList<>();
         if ( noProject ) {
             hints.add( HINT_NO_PROJECT );
         }
-        if ( self == null || self.queues().isEmpty() ) {
+        if ( self == null || self.queues().stream().allMatch( retired::contains ) ) {
             hints.add( HINT_NO_QUEUE );
         }
         return hints;

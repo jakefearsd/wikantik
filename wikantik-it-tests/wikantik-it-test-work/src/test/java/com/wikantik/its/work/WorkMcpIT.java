@@ -59,6 +59,7 @@ public class WorkMcpIT {
 
     private static final String NOT_FOUND = "Not found.";
     private static final String NEEDS_KEY = "This endpoint needs a work API key.";
+    private static final String AGENT_UNUSABLE = "This agent has no sponsor or was retired, so it can do nothing.";
     private static final String PERSON_LOGIN = "wmcpperson";
     private static final String PERSON_NAME = "Wmcp Person";
     private static final String INIT = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":"
@@ -430,7 +431,7 @@ public class WorkMcpIT {
         assertEquals( 204, admin.send( "DELETE", "/api/work/agents/" + loose.id() + "/sponsor", null ).statusCode() );
         final Reply refused = rawCall( loose.token(), session, "claim_item", Map.of( "key", key ) );
         assertTrue( refused.toolError(), "released by its sponsor: no actor on the very next call: " + refused.raw() );
-        assertTrue( refused.raw().contains( "This endpoint needs a work API key." ), refused.raw() );
+        assertTrue( refused.raw().contains( AGENT_UNUSABLE ), refused.raw() );
         assertTrue( itemNow( key ).get( "claimedByAgent" ).isJsonNull(), "no tool body ran" );
 
         assertEquals( 200, admin.send( "PUT", "/api/work/agents/" + loose.id() + "/sponsor", null ).statusCode() );
@@ -477,10 +478,14 @@ public class WorkMcpIT {
         assertFalse( json( admin.get( "/api/work/items/" + key ) ).getAsJsonObject().getAsJsonArray( "comments" ).toString().contains( "ghost" ) );
     }
 
-    /** Refused at the transport (401/403) or by the tool with the needs-key text; either way nothing of the work shown. */
+    /**
+     * Refused at the transport (401/403) or by the tool with the needs-key or unusable-agent text; either way nothing
+     * of the work shown.
+     */
     private static void assertRefusedNoBody( final Reply r, final String secret ) {
         final boolean transport = r.status() == 401 || r.status() == 403;
-        final boolean tool = r.status() == 200 && r.toolError() && NEEDS_KEY.equals( r.toolText() );
+        final boolean tool = r.status() == 200 && r.toolError()
+            && ( NEEDS_KEY.equals( r.toolText() ) || r.toolText().startsWith( AGENT_UNUSABLE ) );
         assertTrue( transport || tool, "expected a refusal, got " + r.status() + " " + r.raw() );
         assertFalse( r.raw().contains( secret ), "the refusal leaks: " + r.raw() );
     }

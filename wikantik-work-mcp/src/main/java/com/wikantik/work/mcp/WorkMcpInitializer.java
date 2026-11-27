@@ -188,7 +188,8 @@ public class WorkMcpInitializer implements ServletContextListener {
         Throwable thrown = null;
         try {
             actor = WorkMcpActors.actorFor( context, svc );
-            result = tool.call( actor, args );
+            result = actor == null && WorkMcpActors.carriesAgentToken( context )
+                ? tool.refuseUnusableAgent( args ) : tool.call( actor, args );
         } catch ( final SQLException e ) {
             LOG.warn( "Work MCP could not resolve the caller's key for {}: {} (SQLState {})", tool.name(),
                 e.getClass().getSimpleName(), e.getSQLState() );

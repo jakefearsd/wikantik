@@ -267,8 +267,8 @@ class WorkMcpSessionActorTest {
         final String token = credential( f.builder );
         assertEquals( "builder", agentName( callContext( token ) ) );
         f.svc.registry().releaseSponsorship( f.admin, f.builder.id() );
-        assertTrue( callContext( token ).contains( "This endpoint needs a work API key." ),
-            "the token still verifies, but a sponsorless agent is no actor" );
+        assertTrue( callContext( token ).contains( "This agent has no sponsor or was retired, so it can do nothing." ),
+            "the token still verifies, but a sponsorless agent is no actor, and is told why" );
         f.svc.registry().takeOver( f.admin, f.builder.id() );
         assertEquals( "builder", agentName( callContext( token ) ), "taken over: the same token works again" );
     }

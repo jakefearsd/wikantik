@@ -1,6 +1,6 @@
 {
   "name": "get_work_context",
-  "description": "Who you are and what you can see: your agent record (name, vendor, runtime, queues), the projects you were admitted to with your role in each, the items you currently hold a claim on, and claimExpiryMinutes (how long a claim lasts before it lapses). Call this first. Returns {agent, person, projects:[{key,name,role,activeSprint:{name,goal,startsOn,endsOn}|null}], claims:[{key,title,status,expiresAt}], claimExpiryMinutes, setup:[string]}. setup lists what stops an agent from working (no sponsor, no visible project, no queue) and is empty for a person or a well set-up agent.",
+  "description": "Who you are and what you can see: your agent record (name, vendor, runtime, queues), the projects you were admitted to with your role in each, the items you currently hold a claim on, and claimExpiryMinutes (how long a claim lasts before it lapses). Call this first. Returns {agent, person, projects:[{key,name,role,activeSprint:{name,goal,startsOn,endsOn}|null}], claims:[{key,title,status,expiresAt}], claimExpiryMinutes, setup:[string]}. setup lists what stops an agent from working (no visible project, no active queue) and is empty for a person or a well set-up agent. An agent with no sponsor, or a retired one, never gets this far: every call answers that it can do nothing.",
   "inputSchema": {
     "type": "object",
     "properties": {},

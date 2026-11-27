@@ -25,6 +25,11 @@ import com.wikantik.its.rest.WorkIt.Caller;
 import org.junit.jupiter.api.Test;
 
 import java.net.http.HttpResponse;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Map;
 
 import static com.wikantik.its.rest.WorkIt.json;
@@ -34,8 +39,9 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * A claim nobody renews lapses by itself. The rest module's cascade sets {@code wikantik.work.claim.expiryMinutes = 1}
- * (the shortest the product allows) and the server sweeps once a minute, so the lapse shows within about two minutes;
- * the wait is bounded and the assertions run on the success path of the poll.
+ * (the shortest the product allows), so the server sweeps every 15 s ({@code WorkClaimSweeper.intervalFor}). Rather
+ * than wait out the minute, the test checks the server set the expiry a minute ahead, then moves that expiry into the
+ * past in the database: what is under test is that the running server's sweeper ends the claim and records it.
  */
 public class WorkClaimExpiryIT {
 
@@ -64,8 +70,12 @@ public class WorkClaimExpiryIT {
         final JsonObject held = itemOf( admin, key );
         assertEquals( "in_progress", held.get( "status" ).getAsString() );
         assertEquals( agent.id(), held.get( "claimedByAgent" ).getAsLong() );
+        final Duration length = Duration.between( Instant.parse( held.get( "claimedAt" ).getAsString() ),
+            Instant.parse( held.get( "claimExpiresAt" ).getAsString() ) );
+        assertTrue( Math.abs( length.minusMinutes( 1 ).toMillis() ) < 2_000, "the configured one-minute claim: " + length );
 
-        final long deadline = System.currentTimeMillis() + 180_000L;
+        expireNow( held.get( "id" ).getAsLong() );
+        final long deadline = System.currentTimeMillis() + 45_000L;
         while ( System.currentTimeMillis() < deadline ) {
             final JsonObject now = itemOf( admin, key );
             if ( now.get( "claimedByAgent" ).isJsonNull() ) {
@@ -83,8 +93,21 @@ public class WorkClaimExpiryIT {
                 assertEquals( "ready", expired.get( "toValue" ).getAsString() );
                 return;
             }
-            Thread.sleep( 3_000 );
+            Thread.sleep( 500 );
         }
-        fail( "the claim never lapsed within 180 s" );
+        fail( "the sweeper never ended the lapsed claim within 45 s (it runs every 15 s)" );
+    }
+
+    /** Moves the item's claim expiry into the past, as if the minute had gone by. */
+    private static void expireNow( final long itemId ) throws Exception {
+        final String url = "jdbc:postgresql://localhost:" + System.getProperty( "it.db.port", "55432" ) + "/"
+            + System.getProperty( "it.db.name", "wikantik" );
+        try ( Connection c = DriverManager.getConnection( url, System.getProperty( "it.db.user" ),
+                System.getProperty( "it.db.password" ) );
+              PreparedStatement ps = c.prepareStatement(
+                  "UPDATE work_item SET claim_expires_at = now() - interval '1 second' WHERE id = ? AND claimed_by_agent IS NOT NULL" ) ) {
+            ps.setLong( 1, itemId );
+            assertEquals( 1, ps.executeUpdate(), "the claimed item " + itemId );
+        }
     }
 }

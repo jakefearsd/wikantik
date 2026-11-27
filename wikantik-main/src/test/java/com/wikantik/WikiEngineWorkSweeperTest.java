@@ -89,6 +89,7 @@ class WikiEngineWorkSweeperTest {
     private void workOn( final WorkClaimsService claims ) {
         final WorkService service = Mockito.mock( WorkService.class );
         Mockito.when( service.claims() ).thenReturn( claims );
+        Mockito.when( claims.claimExpiry() ).thenReturn( java.time.Duration.ofMinutes( 240 ) );
         engine.setWorkService( service );
         engine.startWorkClaimSweeper();
     }

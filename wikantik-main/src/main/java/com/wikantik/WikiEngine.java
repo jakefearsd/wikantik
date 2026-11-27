@@ -1859,7 +1859,7 @@ public class WikiEngine implements Engine {
      */
     void startWorkClaimSweeper() {
         startWorkClaimSweeper( service -> com.wikantik.work.runtime.WorkClaimSweeper.start( service,
-            com.wikantik.work.runtime.WorkClaimSweeper.INTERVAL ) );
+            com.wikantik.work.runtime.WorkClaimSweeper.intervalFor( service.claims().claimExpiry() ) ) );
     }
 
     /** As {@link #startWorkClaimSweeper()}, starting the sweeper through {@code starter} (tests). */

@@ -34,8 +34,19 @@ public final class WorkClaimSweeper implements AutoCloseable {
 
     private static final Logger LOG = LogManager.getLogger( WorkClaimSweeper.class );
 
-    /** How often the sweep runs. */
+    /** The longest wait between sweeps. */
     public static final Duration INTERVAL = Duration.ofSeconds( 60 );
+
+    private static final Duration SHORTEST = Duration.ofSeconds( 1 );
+
+    /**
+     * How often to sweep for claims that last {@code claimExpiry}: four times per expiry, so a lapsed claim is ended at
+     * most a quarter of its length late, but never less often than {@link #INTERVAL} and never more than once a second.
+     */
+    public static Duration intervalFor( final Duration claimExpiry ) {
+        final Duration quarter = claimExpiry.dividedBy( 4 );
+        return quarter.compareTo( INTERVAL ) > 0 ? INTERVAL : quarter.compareTo( SHORTEST ) < 0 ? SHORTEST : quarter;
+    }
 
     /** The size of one store batch; a pass that returns this many probably left more behind. */
     static final int FULL_BATCH = 500;

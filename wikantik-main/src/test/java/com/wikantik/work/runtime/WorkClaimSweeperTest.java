@@ -42,6 +42,15 @@ import static org.mockito.Mockito.when;
 
 class WorkClaimSweeperTest {
 
+    @Test
+    void theSweepRunsFourTimesPerExpiryAndAtLeastOnceAMinute() {
+        assertEquals( Duration.ofSeconds( 60 ), WorkClaimSweeper.intervalFor( Duration.ofMinutes( 240 ) ), "the default expiry" );
+        assertEquals( Duration.ofSeconds( 60 ), WorkClaimSweeper.intervalFor( Duration.ofMinutes( 4 ) ) );
+        assertEquals( Duration.ofSeconds( 15 ), WorkClaimSweeper.intervalFor( Duration.ofMinutes( 1 ) ),
+            "a one-minute claim is ended at most 15 s late, not a whole extra minute" );
+        assertEquals( Duration.ofSeconds( 1 ), WorkClaimSweeper.intervalFor( Duration.ofSeconds( 2 ) ), "never faster than once a second" );
+    }
+
     private final WorkService service = mock( WorkService.class );
     private final WorkClaimsService claims = mock( WorkClaimsService.class );
 

@@ -7,6 +7,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 - Build: seeded generator tests run a twentieth of their cases on fixed seeds in the gate and every case on fresh seeds under `bin/run-tests.sh --all` or `--deep` (`com.wikantik.testing.Fuzz`). wikantik-main's unit run no longer waits minutes on one 6,000-page test.
+- Work: the claim sweeper runs four times per claim expiry, at most once a minute (unchanged at the default 240-minute expiry), so a short claim no longer lapses up to a whole extra minute late.
+
+- Build: seeded generator tests run a twentieth of their cases on fixed seeds in the gate and every case on fresh seeds under `bin/run-tests.sh --all` or `--deep` (`com.wikantik.testing.Fuzz`). wikantik-main's unit run no longer waits minutes on one 6,000-page test.
 
 ## [2.8.10] - 2026-11-27
 

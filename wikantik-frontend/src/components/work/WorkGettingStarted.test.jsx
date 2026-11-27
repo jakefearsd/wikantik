@@ -102,6 +102,14 @@ describe('WorkGettingStarted', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it('still shows an admin with a project and product but no queue or agent', async () => {
+    listProducts.mockResolvedValue([{ key: 'web', archived: false }]);
+    renderCard({ projects: [{ key: 'P', archived: false }] });
+    expect(await screen.findByText('Getting started')).toBeInTheDocument();
+    expect(screen.getByTestId('step-queues')).toHaveTextContent('Not yet');
+    expect(screen.getByRole('button', { name: 'Create starter queues' })).toBeInTheDocument();
+  });
+
   it('is hidden for an admin who has everything set up', async () => {
     listProducts.mockResolvedValue([{ key: 'web', archived: false }]);
     listQueues.mockResolvedValue([{ key: 'review', retiredAt: null }]);

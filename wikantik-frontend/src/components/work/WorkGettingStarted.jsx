@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { listAgents, listProducts, listQueues } from '../../api/work';
 import { useToast } from '../../hooks/useToast';
@@ -40,13 +40,16 @@ export default function WorkGettingStarted({ isAdmin, projects, onCreateProject 
   const [failed, setFailed] = useState(false);
   const [busy, setBusy] = useState(false);
 
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+
   const hasProject = (projects || []).some((p) => !p.archived);
 
   const load = useCallback(() => Promise.resolve().then(() => Promise.all([listProducts(), listQueues(), listAgents()]))
-    .then(([products, queues, agents]) => setData({ products: products || [], queues: queues || [], agents: agents || [] }))
+    .then(([products, queues, agents]) => mounted.current && setData({ products: products || [], queues: queues || [], agents: agents || [] }))
     .catch((err) => {
       console.warn('WorkGettingStarted: could not load the setup state', err);
-      setFailed(true);
+      if (mounted.current) setFailed(true);
     }), []);
 
   useEffect(() => {
@@ -69,7 +72,7 @@ export default function WorkGettingStarted({ isAdmin, projects, onCreateProject 
         if (bad.length) toast.error(`Could not create ${bad.join(' and ')}.`);
         return load();
       })
-      .finally(() => setBusy(false));
+      .finally(() => { if (mounted.current) setBusy(false); });
   }
 
   if (dismissed || failed) return null;
@@ -79,8 +82,8 @@ export default function WorkGettingStarted({ isAdmin, projects, onCreateProject 
   if (!isAdmin) {
     if (hasProject) return null;
     return (
-      <section className="work-getting-started" aria-label="Getting started">
-        <h2 className="work-subheading">Getting started</h2>
+      <section className="work-getting-started" aria-labelledby="work-getting-started-title">
+        <h2 id="work-getting-started-title" className="work-subheading">Getting started</h2>
         <p>{NON_ADMIN_TEXT}</p>
         {dismissButton}
       </section>
@@ -91,12 +94,12 @@ export default function WorkGettingStarted({ isAdmin, projects, onCreateProject 
   const product = data.products.some((p) => !p.archived);
   const queue = data.queues.some((q) => !q.retiredAt);
   const agent = data.agents.some((a) => !a.retiredAt);
-  // An admin who has a project and anything else set up has found their way.
-  if (hasProject && (product || queue || agent)) return null;
+  // An admin sees the card until a project and an active product, queue and agent all exist.
+  if (hasProject && product && queue && agent) return null;
 
   return (
-    <section className="work-getting-started" aria-label="Getting started">
-      <h2 className="work-subheading">Getting started</h2>
+    <section className="work-getting-started" aria-labelledby="work-getting-started-title">
+      <h2 id="work-getting-started-title" className="work-subheading">Getting started</h2>
       <ul className="work-getting-started-steps">
         <Step id="product" done={product} label="Create a product (optional unless you track branches or deploys)">
           <Link to="/work/products">Create a product</Link>

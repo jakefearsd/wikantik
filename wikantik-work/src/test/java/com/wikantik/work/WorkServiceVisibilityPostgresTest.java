@@ -58,7 +58,7 @@ class WorkServiceVisibilityPostgresTest {
         "retireQueue", "registerAgent", "updateAgent", "rotateCredential", "takeOver", "releaseSponsorship", "retireAgent", "claim", "release", "handoff", "acknowledge", "open", "update",
         "requestReview", "review", "merge", "abandon", "request", "approve", "start", "verify", "fail", "rollBack", "reject",
         "create", "close", "markRead", "setWatch", "add", "remove",
-        "save", "rename", "delete", "upload", "enableHook", "disableHook", "acknowledgeFlag", "comment" );
+        "setDefaultProduct", "save", "rename", "delete", "upload", "enableHook", "disableHook", "acknowledgeFlag", "comment" );
 
     /** Methods that act for no caller: they derive an actor, so they take none. */
     private static final Set< String > SYSTEM = Set.of( "actorForApiKey",
@@ -455,6 +455,7 @@ class WorkServiceVisibilityPostgresTest {
             () -> service.removeComment( mallory, commentId ),
             () -> service.addLink( mallory, "PLAT-1", "url", "https://a.example" ),
             () -> service.removeLink( mallory, linkId ),
+            () -> service.features().setDefaultProduct( mallory, "PLAT", "web" ),
             () -> service.features().notifications().markRead( mallory, "PLAT-1" ),
             () -> service.features().notifications().setWatch( mallory, "PLAT-1", WatchState.WATCHING ),
             () -> service.features().webhooks().add( mallory, "PLAT", new WebhookDraft( "https://a.example.com/x", "generic", List.of() ) ),

@@ -24,6 +24,7 @@ import com.wikantik.jdbc.NullableColumns;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 /** The project's default product: the guarded write and the clearing done when a product is archived. */
@@ -45,12 +46,21 @@ final class JdbcProjectDefaults {
             .orElseThrow( () -> new SQLException( "work_project " + projectId + " not found" ) )
             .orElse( null );
         final Long next = productOrNull == null ? null : productOrNull.id();
-        if ( java.util.Objects.equals( current, next ) ) {
+        if ( Objects.equals( current, next ) ) {
             return;
         }
         final String fromKey = current == null ? null : jdbc.queryOne( conn,
             "SELECT key FROM work_product WHERE id = ?", ps -> ps.setLong( 1, current ),
             rs -> rs.getString( "key" ) ).orElse( null );
+        if ( productOrNull != null ) {
+            // FOR SHARE conflicts with archiveProduct's row lock, so an archive in flight serializes with this write
+            final boolean archived = jdbc.queryOne( conn, "SELECT archived_at FROM work_product WHERE id = ? FOR SHARE",
+                    ps -> ps.setLong( 1, productOrNull.id() ), rs -> rs.getTimestamp( "archived_at" ) != null )
+                .orElse( true );
+            if ( archived ) {
+                throw new WorkValidationException( "defaultProductKey", "No such product: " + productOrNull.key() );
+            }
+        }
         jdbc.update( conn, "UPDATE work_project SET default_product_id = ? WHERE id = ?", ps -> {
             NullableColumns.setNullableLong( ps, 1, next );
             ps.setLong( 2, projectId );

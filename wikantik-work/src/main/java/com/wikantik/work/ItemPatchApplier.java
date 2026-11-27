@@ -68,11 +68,27 @@ final class ItemPatchApplier {
             throw new WorkValidationException( "level", "An item needs a level." );
         }
         final Item parent = d.parentKey() == null ? null : resolveParent( project, d.parentKey(), -1 );
-        final Product product = d.productKey() == null ? null : resolveProduct( d.productKey() );
+        final Product product = productFor( project, d );
         final Item next = newItem( project, d, parent, product, start );
         targets.checkNew( project, next );
         ItemRules.validate( next, parent );
         return next;
+    }
+
+    /** The draft's product: its key if given (blank means none), else the project's default for stories and tasks. */
+    private Product productFor( final Project project, final ItemDraft d ) throws SQLException {
+        if ( d.productKey() == null ) {
+            return inherited( project, d.level() );
+        }
+        return d.productKey().isBlank() ? null : resolveProduct( d.productKey() );
+    }
+
+    /** The project's default product, unless this is an epic or the default has been archived since. */
+    private Product inherited( final Project project, final WorkLevel level ) throws SQLException {
+        if ( level == WorkLevel.EPIC || project.defaultProductId() == null ) {
+            return null;
+        }
+        return store.product( project.defaultProductId() ).filter( p -> p.archivedAt() == null ).orElse( null );
     }
 
     /** The unsaved item a draft describes once its parent and product are resolved. */

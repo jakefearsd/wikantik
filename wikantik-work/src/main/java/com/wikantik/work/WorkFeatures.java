@@ -83,6 +83,25 @@ public final class WorkFeatures {
         return store.labelCounts( s.project().id() );
     }
 
+    /**
+     * Sets or clears (blank {@code productKey}) the product that new stories and tasks of the project start in.
+     * A project lead's call; the product must exist and not be archived.
+     */
+    public void setDefaultProduct( final Actor actor, final String projectKey, final String productKey )
+            throws SQLException {
+        final Scope s = scopes.scope( actor, projectKey );
+        s.require( Action.MANAGE_PROJECT, null );
+        s.requireWritable();
+        Product product = null;
+        if ( productKey != null && !productKey.isBlank() ) {
+            product = store.product( productKey.trim() ).filter( p -> p.archivedAt() == null ).orElse( null );
+            if ( product == null ) {
+                throw new WorkValidationException( "defaultProductKey", "No such product: " + productKey.trim() );
+            }
+        }
+        store.setDefaultProduct( s.project().id(), product, actor );
+    }
+
     /** Attachments: files on an item (Part 7). */
     public WorkAttachmentsService attachments() {
         return attachments;

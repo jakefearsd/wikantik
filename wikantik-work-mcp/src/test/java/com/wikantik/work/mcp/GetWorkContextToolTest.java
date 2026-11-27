@@ -126,4 +126,65 @@ class GetWorkContextToolTest {
             }
         }
     }
+
+    private static final String NO_SPONSOR = "Nobody sponsors you, so you can do nothing. "
+        + "A wiki admin or a project lead must take you over.";
+    private static final String NO_PROJECT = "You are not a member of any project you can see. "
+        + "Ask your sponsor to add you to a project (they must be a member of it too).";
+    private static final String NO_QUEUE = "You serve no queue, so list_claimable is always empty. "
+        + "Ask your sponsor to add a queue to you.";
+
+    private java.util.List< String > setup( final com.wikantik.work.Actor actor ) throws SQLException {
+        final JsonObject out = WorkMcpFixture.json( tool.call( actor, Map.of() ) );
+        final java.util.List< String > hints = new java.util.ArrayList<>();
+        for ( final var e : out.getAsJsonArray( "setup" ) ) {
+            hints.add( e.getAsString() );
+        }
+        return hints;
+    }
+
+    private com.wikantik.work.Actor agentActor( final String name, final java.util.List< String > queues )
+            throws SQLException {
+        final com.wikantik.work.Agent a = f.svc.registry().registerAgent( f.admin,
+            new com.wikantik.work.AgentDraft( name, "Acme", "cli", queues ) ).agent();
+        return com.wikantik.work.Actor.agent( a.id(), a.name(),
+            com.wikantik.work.Actor.human( "admin", java.util.Set.of(), true ) );
+    }
+
+    @Test
+    void personGetsAnEmptySetupList() throws SQLException {
+        assertEquals( java.util.List.of(), setup( f.lena ) );
+    }
+
+    @Test
+    void wellSetUpAgentGetsAnEmptySetupList() throws SQLException {
+        assertEquals( java.util.List.of(), setup( f.builderActor ) );
+    }
+
+    @Test
+    void agentWithoutSponsorIsToldFirst() throws SQLException {
+        final com.wikantik.work.Actor loner = agentActor( "loner", java.util.List.of() );
+        f.svc.registry().releaseSponsorship( f.admin, loner.agentId() );
+        final java.util.List< String > hints = setup( loner );
+        assertTrue( hints.get( 0 ).startsWith( "Nobody sponsors you" ), hints.toString() );
+        assertEquals( java.util.List.of( NO_SPONSOR, NO_PROJECT, NO_QUEUE ), hints );
+    }
+
+    @Test
+    void agentInNoProjectIsToldToAskItsSponsor() throws SQLException {
+        final java.util.List< String > hints = setup( agentActor( "loner", java.util.List.of( "reviewer" ) ) );
+        assertEquals( java.util.List.of( NO_PROJECT ), hints );
+    }
+
+    @Test
+    void agentWithNoQueueIsToldListClaimableIsEmpty() throws SQLException {
+        final com.wikantik.work.Actor a = agentActor( "second", java.util.List.of() );
+        f.svc.putMember( f.admin, "PLAT", "second", "agent", com.wikantik.work.WorkRole.MEMBER );
+        assertEquals( java.util.List.of( NO_QUEUE ), setup( a ) );
+    }
+
+    @Test
+    void descriptionNamesTheSetupField() {
+        assertTrue( tool.definition().description().contains( "setup:[" ), tool.definition().description() );
+    }
 }

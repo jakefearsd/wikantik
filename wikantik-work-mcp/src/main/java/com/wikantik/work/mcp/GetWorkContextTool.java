@@ -45,7 +45,15 @@ public final class GetWorkContextTool extends WorkMcpTool {
             + "projects you were admitted to with your role in each, the items you currently hold a claim on, "
             + "and claimExpiryMinutes (how long a claim lasts before it lapses). Call this first. Returns "
             + "{agent, person, projects:[{key,name,role,activeSprint:{name,goal,startsOn,endsOn}|null}], claims:[{key,title,status,expiresAt}], "
-            + "claimExpiryMinutes}." );
+            + "claimExpiryMinutes, setup:[string]}. setup lists what stops an agent from working (no sponsor, no "
+            + "visible project, no queue) and is empty for a person or a well set-up agent." );
+
+    private static final String HINT_NO_SPONSOR = "Nobody sponsors you, so you can do nothing. "
+        + "A wiki admin or a project lead must take you over.";
+    private static final String HINT_NO_PROJECT = "You are not a member of any project you can see. "
+        + "Ask your sponsor to add you to a project (they must be a member of it too).";
+    private static final String HINT_NO_QUEUE = "You serve no queue, so list_claimable is always empty. "
+        + "Ask your sponsor to add a queue to you.";
 
     private final WorkService svc;
     private final WorkDirectory directory;
@@ -61,7 +69,8 @@ public final class GetWorkContextTool extends WorkMcpTool {
         final Map< String, Object > out = new LinkedHashMap<>();
         final WorkMcpJson json = WorkMcpJson.forActor( svc, directory, actor );
         final boolean agent = actor.kind() == Actor.Kind.AGENT;
-        out.put( "agent", agent ? agent( actor, json ) : null );
+        final Agent self = agent ? svc.registry().self( actor ).orElse( null ) : null;
+        out.put( "agent", agent ? agent( actor, self, json ) : null );
         out.put( "person", agent ? null : json.person( actor.login() ) );
         final List< Map< String, Object > > projects = new ArrayList<>();
         for ( final WorkService.ProjectRole pr : svc.listProjectsWithRoles( actor ) ) {
@@ -84,12 +93,27 @@ public final class GetWorkContextTool extends WorkMcpTool {
         }
         out.put( "claims", claims );
         out.put( "claimExpiryMinutes", svc.claims().claimExpiry().toMinutes() );
+        out.put( "setup", agent ? setupHints( self, projects.isEmpty() ) : List.of() );
         return ok( out );
     }
 
-    private Map< String, Object > agent( final Actor actor, final WorkMcpJson json ) throws SQLException {
+    /** What keeps an agent from working, in the order to fix it; describes only the agent itself. */
+    private static List< String > setupHints( final Agent self, final boolean noProject ) {
+        final List< String > hints = new ArrayList<>();
+        if ( self == null || self.sponsor() == null || self.sponsor().isBlank() ) {
+            hints.add( HINT_NO_SPONSOR );
+        }
+        if ( noProject ) {
+            hints.add( HINT_NO_PROJECT );
+        }
+        if ( self == null || self.queues().isEmpty() ) {
+            hints.add( HINT_NO_QUEUE );
+        }
+        return hints;
+    }
+
+    private Map< String, Object > agent( final Actor actor, final Agent self, final WorkMcpJson json ) {
         final Map< String, Object > a = new LinkedHashMap<>();
-        final Agent self = svc.registry().self( actor ).orElse( null );
         a.put( "name", self != null ? self.name() : actor.login() );
         a.put( "vendor", self == null ? null : self.vendor() );
         a.put( "runtime", self == null ? null : self.runtime() );

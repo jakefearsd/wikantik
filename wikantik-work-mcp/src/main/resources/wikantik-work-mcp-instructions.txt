@@ -9,7 +9,8 @@ and a request on it with any other is refused (HTTP 403); open a session per cre
 
 get_work_context   Who you are (your agent record and queues), the projects you can see with your role in each, the
                    items you currently hold a claim on, and claimExpiryMinutes. Each project names its activeSprint
-                   (name, goal, startsOn, endsOn) or null. Call it first, and again after a long pause.
+                   (name, goal, startsOn, endsOn) or null. setup lists what stops you working (no sponsor, no visible
+                   project, no queue); empty when all is well. Call it first, and again after a long pause.
 list_claimable     Items you could claim now: unclaimed, ready or in review, in a queue you serve, in a project
                    where you are a member. Optional project, queue and limit (default 20, at most 50). Items in a
                    project's active sprint come first, then by priority and due date.

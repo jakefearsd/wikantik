@@ -41,8 +41,10 @@ public final class JdbcSyncStateStore implements SyncStateStore {
     public JdbcSyncStateStore( final DataSource ds ) { this.jdbc = new Jdbc( ds ); }
 
     @Override public Optional< SyncCursor > loadCursor( final String id ) {
+        // A row whose cursor is NULL (cleared by saveCursor(id, null)) means "no cursor", not a cursor
+        // wrapping null — connectors test for an absent cursor with a null/empty check, not value() == null.
         return query1( "SELECT cursor FROM connector_sync_state WHERE connector_id=?", id,
-            rs -> new SyncCursor( rs.getString( 1 ) ) );
+            rs -> rs.getString( 1 ) ).map( SyncCursor::new );
     }
 
     @Override public void saveCursor( final String id, final SyncCursor cursor ) {

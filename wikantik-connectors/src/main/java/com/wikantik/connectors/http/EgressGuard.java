@@ -18,7 +18,6 @@
  */
 package com.wikantik.connectors.http;
 
-import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
@@ -100,23 +99,9 @@ public final class EgressGuard {
         }
     }
 
-    /** True for any address a connector must never reach. */
+    /** True for any address a connector must never reach (see {@link BlockedAddresses}). */
     static boolean isBlockedAddress( final InetAddress a ) {
-        if ( a.isLoopbackAddress()      // 127.0.0.0/8, ::1
-                || a.isAnyLocalAddress() // 0.0.0.0, ::
-                || a.isLinkLocalAddress()// 169.254.0.0/16 (incl. 169.254.169.254 metadata), fe80::/10
-                || a.isSiteLocalAddress()// 10/8, 172.16/12, 192.168/16
-                || a.isMulticastAddress() ) {
-            return true;
-        }
-        // IPv6 unique-local addresses fc00::/7 are private but not flagged by isSiteLocalAddress.
-        if ( a instanceof Inet6Address ) {
-            final byte[] b = a.getAddress();
-            if ( b.length == 16 && ( b[ 0 ] & 0xFE ) == 0xFC ) {
-                return true;
-            }
-        }
-        return false;
+        return BlockedAddresses.isBlocked( a );
     }
 
     /**

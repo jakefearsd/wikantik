@@ -61,6 +61,14 @@ class HttpGithubApiTest {
                 respond( ex, 404, "{\"message\":\"Not Found\"}" );
             } else if ( path.equals( "/repos/acme/handbook/contents/docs/Getting Started.md" ) ) {
                 respond( ex, 200, "# spaced" );
+            } else if ( path.equals( "/repos/acme/handbook/git/trees/big" ) ) {
+                respond( ex, 200, "{\"truncated\":true,\"tree\":[]}" );
+            } else if ( path.equals( "/repos/acme/handbook/git/trees/notrunc" ) ) {
+                respond( ex, 200, "{\"tree\":[]}" );
+            } else if ( path.equals( "/repos/acme/handbook/contents/created.md" ) ) {
+                respond( ex, 201, "made" );
+            } else if ( path.equals( "/repos/acme/handbook/contents/forbidden.md" ) ) {
+                respond( ex, 403, "{}" );
             } else if ( path.equals( "/repos/acme/handbook/git/trees/boom" ) ) {
                 respond( ex, 500, "oops" );
             } else {
@@ -107,5 +115,15 @@ class HttpGithubApiTest {
     @Test void rawContentEncodesUriIllegalPathSegments() throws IOException {
         assertArrayEquals( "# spaced".getBytes( StandardCharsets.UTF_8 ),
             api().rawContent( "docs/Getting Started.md", "main" ).orElseThrow() );
+    }
+
+    @Test void truncatedFlagIsReportedAndDefaultsToFalseWhenAbsent() throws IOException {
+        assertTrue( api().listTree( "big" ).truncated() );
+        assertFalse( api().listTree( "notrunc" ).truncated() );
+    }
+
+    @Test void anyNon2xxOtherThan404ThrowsOnRawContentAndAny2xxIsAccepted() throws IOException {
+        assertThrows( IOException.class, () -> api().rawContent( "forbidden.md", "main" ) );
+        assertArrayEquals( "made".getBytes( StandardCharsets.UTF_8 ), api().rawContent( "created.md", "main" ).orElseThrow() );
     }
 }

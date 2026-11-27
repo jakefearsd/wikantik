@@ -93,4 +93,62 @@ class JdbcSyncStateStoreTest {
         assertEquals( "u:1", items.get( 0 ).sourceUri() );
         assertNotNull( items.get( 0 ).lastSynced() );
     }
+
+    @Test void savingANullCursorClearsAnExistingOneAndRecordsARowWhenNoneExisted() {
+        final JdbcSyncStateStore store = new JdbcSyncStateStore( ds );
+        store.saveCursor( "c1", new SyncCursor( "cur" ) );
+        store.saveCursor( "c1", null );
+        assertTrue( store.loadCursor( "c1" ).isEmpty(), "a null cursor means 'start over', not 'keep the old one'" );
+        store.saveCursor( "fresh", null );                                // INSERT path with a null value
+        assertTrue( store.loadCursor( "fresh" ).isEmpty() );
+        store.saveCursor( "fresh", new SyncCursor( "x" ) );
+        assertEquals( "x", store.loadCursor( "fresh" ).orElseThrow().value() );
+    }
+
+    @Test void cursorsAreKeptPerConnector() {
+        final JdbcSyncStateStore store = new JdbcSyncStateStore( ds );
+        store.saveCursor( "a", new SyncCursor( "A" ) );
+        store.saveCursor( "b", new SyncCursor( "B" ) );
+        assertEquals( "A", store.loadCursor( "a" ).orElseThrow().value() );
+        assertEquals( "B", store.loadCursor( "b" ).orElseThrow().value() );
+    }
+
+    @Test void syncedStateIsKeyedByConnectorAndUri() {
+        final JdbcSyncStateStore store = new JdbcSyncStateStore( ds );
+        store.recordSynced( "a", "u:1", "ha", "PageA", List.of() );
+        store.recordSynced( "b", "u:1", "hb", "PageB", List.of() );
+        assertEquals( Optional.of( "ha" ), store.syncedHash( "a", "u:1" ) );
+        assertEquals( Optional.of( "PageB" ), store.pageNameFor( "b", "u:1" ) );
+        assertTrue( store.syncedHash( "a", "u:other" ).isEmpty() );
+        store.removeSynced( "a", "u:1" );
+        assertEquals( Optional.of( "hb" ), store.syncedHash( "b", "u:1" ), "removal is scoped to one connector" );
+    }
+
+    @Test void updatingAnItemKeepsOneRowAndMovesThePageName() {
+        final JdbcSyncStateStore store = new JdbcSyncStateStore( ds );
+        store.recordSynced( "c1", "u:1", "h1", "Old", List.of() );
+        store.recordSynced( "c1", "u:1", "h2", "New", List.of() );
+        assertEquals( List.of( "u:1" ), store.knownUris( "c1" ) );
+        assertEquals( Optional.of( "New" ), store.pageNameFor( "c1", "u:1" ) );
+    }
+
+    @Test void itemsAreListedForOneConnectorOrderedByPageName() {
+        final JdbcSyncStateStore store = new JdbcSyncStateStore( ds );
+        store.recordSynced( "c1", "u:z", "h", "Zeta", List.of() );
+        store.recordSynced( "c1", "u:a", "h", "Alpha", List.of() );
+        store.recordSynced( "c2", "u:other", "h", "Other", List.of() );
+        assertEquals( List.of( "Alpha", "Zeta" ),
+                store.items( "c1" ).stream().map( SyncStateStore.SyncedItem::pageName ).toList() );
+        assertTrue( store.items( "nobody" ).isEmpty() );
+        assertTrue( store.knownUris( "nobody" ).isEmpty() );
+    }
+
+    @Test void toJsonArrayHandlesEmptyNullQuotesAndBackslashes() {
+        assertEquals( "[]", JdbcSyncStateStore.toJsonArray( null ) );
+        assertEquals( "[]", JdbcSyncStateStore.toJsonArray( List.of() ) );
+        assertEquals( "[\"a\"]", JdbcSyncStateStore.toJsonArray( List.of( "a" ) ) );
+        assertEquals( "[\"a\",\"b\"]", JdbcSyncStateStore.toJsonArray( List.of( "a", "b" ) ) );
+        assertEquals( "[\"say \\\"hi\\\"\",\"c:\\\\dir\"]",
+                JdbcSyncStateStore.toJsonArray( List.of( "say \"hi\"", "c:\\dir" ) ) );
+    }
 }

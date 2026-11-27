@@ -169,28 +169,57 @@ class TikaSourceExtractorTest {
      * blocking parse or sleep.
      */
     @Test
-    void zeroTimeoutThrowsExtractionException() {
-        // write-limit irrelevant; timeout=0 trips before parse can complete
-        final TikaSourceExtractor zero = new TikaSourceExtractor( TikaSourceExtractor.DEFAULT_WRITE_LIMIT_CHARS, 0 );
-        final byte[] bytes = "Hello world".getBytes( StandardCharsets.UTF_8 );
-        assertThrows( ExtractionException.class, () -> {
-            try ( InputStream in = new ByteArrayInputStream( bytes ) ) {
-                zero.extract( in, "text/plain", "timeout.txt" );
-            }
-        }, "A 0-second timeout must throw ExtractionException" );
+    void zeroTimeoutThrowsExtractionException() throws Exception {
+        final AtomicBoolean release = new AtomicBoolean( false );
+        final CountDownLatch entered = new CountDownLatch( 1 );
+        final BusyLoopParser busy = new BusyLoopParser( release, entered );
+        final TikaSourceExtractor zero = zeroTimeout( busy );
+        try {
+            assertThrows( ExtractionException.class, () -> {
+                try ( InputStream in = new ByteArrayInputStream( "Hello world".getBytes( StandardCharsets.UTF_8 ) ) ) {
+                    zero.extract( in, "text/plain", "timeout.txt" );
+                }
+            }, "A 0-second timeout must throw ExtractionException" );
+        } finally {
+            releaseIfStarted( release, entered, busy );
+        }
     }
 
     /** The single-arg timeout ExtractionException names the timeout and the filename. */
     @Test
-    void zeroTimeoutMessageNamesTimeoutAndFile() {
-        final TikaSourceExtractor zero = new TikaSourceExtractor( TikaSourceExtractor.DEFAULT_WRITE_LIMIT_CHARS, 0 );
-        final ExtractionException thrown = assertThrows( ExtractionException.class,
-            () -> zero.extract( new ByteArrayInputStream( "x".getBytes( StandardCharsets.UTF_8 ) ),
-                                "text/plain", "slow.txt" ) );
-        assertTrue( thrown.getMessage().contains( "timed out" ),
-            "timeout message must say it timed out, got: " + thrown.getMessage() );
-        assertTrue( thrown.getMessage().contains( "slow.txt" ),
-            "timeout message must name the offending file, got: " + thrown.getMessage() );
+    void zeroTimeoutMessageNamesTimeoutAndFile() throws Exception {
+        final AtomicBoolean release = new AtomicBoolean( false );
+        final CountDownLatch entered = new CountDownLatch( 1 );
+        final BusyLoopParser busy = new BusyLoopParser( release, entered );
+        final TikaSourceExtractor zero = zeroTimeout( busy );
+        try {
+            final ExtractionException thrown = assertThrows( ExtractionException.class,
+                () -> zero.extract( new ByteArrayInputStream( "x".getBytes( StandardCharsets.UTF_8 ) ),
+                                    "text/plain", "slow.txt" ) );
+            assertTrue( thrown.getMessage().contains( "timed out" ),
+                "timeout message must say it timed out, got: " + thrown.getMessage() );
+            assertTrue( thrown.getMessage().contains( "slow.txt" ),
+                "timeout message must name the offending file, got: " + thrown.getMessage() );
+        } finally {
+            releaseIfStarted( release, entered, busy );
+        }
+    }
+
+    /**
+     * A 0-second extractor whose parse cannot finish until released. With the real parser a warm worker could parse a
+     * tiny document between the submit and the zero-wait {@code get}, which then returned normally: nothing was thrown.
+     */
+    private static TikaSourceExtractor zeroTimeout( final BusyLoopParser busy ) {
+        return new InjectableExtractor( busy, TikaSourceExtractor.DEFAULT_WRITE_LIMIT_CHARS, 0 );
+    }
+
+    /** A zero timeout may cancel the worker before it starts; a worker that did start is released and drained. */
+    private static void releaseIfStarted( final AtomicBoolean release, final CountDownLatch entered,
+                                          final BusyLoopParser busy ) throws InterruptedException {
+        release.set( true );
+        if ( entered.getCount() == 0 ) {
+            release( release, busy.finished );
+        }
     }
 
     // ------------------------------------------------------------------ content-type guard

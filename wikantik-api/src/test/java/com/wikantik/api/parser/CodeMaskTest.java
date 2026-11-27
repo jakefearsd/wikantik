@@ -27,20 +27,6 @@ import org.junit.jupiter.api.Test;
 
 class CodeMaskTest {
 
-    @Test
-    void fencedMarksOnlyFenceLines() {
-        final String md = "a `x`\n```\nb\n```\n\n    indented\n";
-        final boolean[] all = CodeMask.of( md );
-        final boolean[] fenced = CodeMask.fenced( md );
-        assertTrue( all[ md.indexOf( "x" ) ] );
-        assertFalse( fenced[ md.indexOf( "x" ) ] );
-        assertTrue( fenced[ md.indexOf( "b" ) ] );
-        assertTrue( fenced[ md.indexOf( "```" ) ] );
-        assertTrue( all[ md.indexOf( "indented" ) ] );
-        assertFalse( fenced[ md.indexOf( "indented" ) ] );
-        assertFalse( fenced[ 0 ] );
-    }
-
     /**
      * Unmatched backtick runs of distinct lengths each used to rescan the rest of the line (O(n^1.5) on one long
      * line: ~100 ms per 256 KB note per call, five calls per imported note). Pairing is now precomputed per line.

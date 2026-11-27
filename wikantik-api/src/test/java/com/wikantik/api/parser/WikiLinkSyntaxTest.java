@@ -140,4 +140,38 @@ class WikiLinkSyntaxTest {
         final var s = one( "[[#H]]" );
         assertEquals( s.nameFrom(), s.nameTo() );
     }
+
+    @Test void aLoneLeadingPipeLeavesNoTargetSoItIsNotALink() {
+        assertTrue( WikiLinkSyntax.parse( "[[|alias]]" ).isEmpty() );
+        assertTrue( WikiLinkSyntax.parse( "[[|]]" ).isEmpty() );
+    }
+
+    @Test void anEscapedPipeOnlyCountsWhenABackslashPrecedesIt() {
+        final var plain = one( "[[Pa\\ge|x]]" );   // the backslash is not directly before the pipe
+        assertEquals( "Pa\\ge", plain.target() );
+        final var escaped = one( "[[Page\\|cell]]" );
+        assertEquals( "Page", escaped.target() );
+        assertEquals( "cell", escaped.alias() );
+    }
+
+    @Test void aLeadingSlashIsNotAnOwnerSeparator() {
+        final var r = one( "[[/odd]]" );
+        assertEquals( "/odd", r.target() );
+        assertEquals( r.nameFrom() + 4, r.nameTo(), "the name range covers the whole target" );
+        assertEquals( false, r.isAttachment() );
+    }
+
+    @Test void theNameRangeStopsAtTheOwnerSlash() {
+        final var r = one( "[[Owner/file.png]]" );
+        assertEquals( 2, r.nameFrom() );
+        assertEquals( 2 + "Owner".length(), r.nameTo() );
+    }
+
+    @Test void nullAndEmptyTextHaveNoLinks() {
+        assertTrue( WikiLinkSyntax.findAll( null ).isEmpty() );
+        assertTrue( WikiLinkSyntax.findAll( "" ).isEmpty() );
+        assertEquals( null, WikiLinkSyntax.replaceAll( null, r -> "x" ) );
+        assertEquals( "", WikiLinkSyntax.replaceAll( "", r -> "x" ) );
+        assertTrue( WikiLinkSyntax.parse( null ).isEmpty() );
+    }
 }

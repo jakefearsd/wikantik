@@ -223,4 +223,81 @@ class IdentityDisplayTest {
         assertSame( metadata, IdentityDisplay.frontmatter( null, metadata ) );
         assertNull( IdentityDisplay.frontmatter( identity, null ) );
     }
+
+    // --- change note edge cases (verifier parsing) ---------------------------
+
+    /** As FakeIdentity plus an account whose login holds a space. */
+    private static final PublicIdentity SPACED = new FakeIdentity() {
+        @Override public String displayName( final String storedPrincipal ) {
+            return "Jo Smith".equals( storedPrincipal == null ? null : storedPrincipal.trim() ) ? "Joanna S"
+                    : super.displayName( storedPrincipal );
+        }
+    };
+
+    @Test
+    void changeNote_aLoginMayHoldSpacesWhenItIsTheWholeRestOfTheNote() {
+        assertEquals( "verified by Joanna S", IdentityDisplay.changeNote( SPACED, "verified by Jo Smith" ) );
+    }
+
+    @Test
+    void changeNote_aSpacedNonLoginFallsBackToItsFirstWordAndIsLeftAlone() {
+        assertEquals( "verified by Jo Smith extra", IdentityDisplay.changeNote( SPACED, "verified by Jo Smith extra" ) );
+    }
+
+    @Test
+    void changeNote_anEmailVerifierFollowedByTextKeepsTheTextAndResolvesOnlyTheEmail() {
+        assertEquals( "verified by Sso User on Monday",
+                IdentityDisplay.changeNote( identity, "verified by sso.user@example.test on Monday" ) );
+        assertEquals( "verified by unknown contributor on Monday",
+                IdentityDisplay.changeNote( identity, "verified by gone@example.test on Monday" ) );
+    }
+
+    @Test
+    void changeNote_aNoteWhoseVerifierNeedsNoChangeIsReturnedByteForByte() {
+        for ( final String note : new String[]{ "verified by  bob", "verified by bob", "verified by  bob  later",
+                "verified by bob\nsecond line" } ) {
+            assertEquals( note, IdentityDisplay.changeNote( identity, note ), note.replace( "\n", "\\n" ) );
+        }
+    }
+
+    @Test
+    void changeNote_aNoteWithNoVerifierIsReturnedAsWritten() {
+        assertEquals( "verified by ", IdentityDisplay.changeNote( identity, "verified by " ) );
+        assertEquals( "verified by    ", IdentityDisplay.changeNote( identity, "verified by    " ) );
+    }
+
+    @Test
+    void changeNote_aMultiLineNoteKeepsItsTailWhenTheVerifierIsRewritten() {
+        assertEquals( "verified by Janne Jalkanen\nreviewed the numbers",
+                IdentityDisplay.changeNote( identity, "verified by janne\nreviewed the numbers" ) );
+    }
+
+    @Test
+    void changeNote_withoutAnIdentityOrANoteTheNoteIsReturnedAsIs() {
+        assertEquals( "verified by janne", IdentityDisplay.changeNote( null, "verified by janne" ) );
+        assertNull( IdentityDisplay.changeNote( identity, null ) );
+    }
+
+    @Test
+    void frontmatter_withNoIdentityOrNoMetadataReturnsTheArgumentItself() {
+        final Map< String, Object > meta = new LinkedHashMap<>( Map.of( "author", "janne" ) );
+        assertSame( meta, IdentityDisplay.frontmatter( null, meta ) );
+        assertNull( IdentityDisplay.frontmatter( identity, null ) );
+        final Map< String, Object > empty = Map.of();
+        assertSame( empty, IdentityDisplay.frontmatter( identity, empty ) );
+    }
+
+    @Test
+    void frontmatter_resolvesEachPrincipalKeyIndependentlyAndKeepsOrderAndOtherKeys() {
+        final Map< String, Object > meta = new LinkedHashMap<>();
+        meta.put( "title", "janne" );
+        meta.put( "verified_by", "janne" );
+        meta.put( "author", "someone else" );
+        final Map< String, Object > shown = IdentityDisplay.frontmatter( identity, meta );
+        assertEquals( List.of( "title", "verified_by", "author" ), List.copyOf( shown.keySet() ) );
+        assertEquals( "janne", shown.get( "title" ), "only principal keys are rewritten" );
+        assertEquals( "Janne Jalkanen", shown.get( "verified_by" ) );
+        assertEquals( "someone else", shown.get( "author" ) );
+        assertEquals( "janne", meta.get( "verified_by" ), "the argument is never mutated" );
+    }
 }

@@ -87,4 +87,41 @@ class FrontmatterWriterTest {
         assertTrue( FrontmatterWriter.write( Map.of( "acl", rule ), "body" ).indexOf( rule ) < 0,
             "the stored form folds it (why the scanned form must not)" );
     }
+
+    @Test
+    void writeUnfoldedKeepsALongValueOnOneLine() {
+        final String longSummary = "word ".repeat( 60 ).trim();
+        final String out = FrontmatterWriter.writeUnfolded( java.util.Map.of( "summary", longSummary ), "body" );
+        assertEquals( "---\nsummary: " + longSummary + "\n---\nbody", out );
+    }
+
+    @Test
+    void writeFoldsALongValueAndTheFoldReadsBackIdentically() {
+        final String longSummary = "word ".repeat( 60 ).trim();
+        final String out = FrontmatterWriter.write( java.util.Map.of( "summary", longSummary ), "body" );
+        final String yaml = out.substring( 4, out.indexOf( "---\nbody" ) );
+        assertTrue( yaml.lines().count() > 1, "a 300-character scalar is folded" );
+        assertTrue( yaml.lines().skip( 1 ).allMatch( l -> l.startsWith( "  " ) ), "continuation lines are indented: " + yaml );
+        assertEquals( longSummary, FrontmatterParser.parse( out ).metadata().get( "summary" ) );
+    }
+
+    @Test
+    void listsAreWrittenInBlockStyleOnePerLine() {
+        final String out = FrontmatterWriter.write( java.util.Map.of( "tags", java.util.List.of( "a", "b" ) ), "" );
+        assertEquals( "---\ntags:\n- a\n- b\n---\n", out );
+    }
+
+    @Test
+    void aNullBodyIsWrittenAsEmptyAfterTheBlockAndAloneWhenThereIsNoMetadata() {
+        assertEquals( "---\nk: v\n---\n", FrontmatterWriter.write( java.util.Map.of( "k", "v" ), null ) );
+        assertEquals( "", FrontmatterWriter.write( java.util.Map.of(), null ) );
+        assertEquals( "body", FrontmatterWriter.write( null, "body" ) );
+    }
+
+    @Test
+    void writeLikeGivesTheBlockTheOriginalsLineEndings() {
+        assertEquals( "---\r\nk: v\r\n---\r\nbody", FrontmatterWriter.writeLike( "x\r\ny", java.util.Map.of( "k", "v" ), "body" ) );
+        assertEquals( "---\nk: v\n---\nbody", FrontmatterWriter.writeLike( "x\ny", java.util.Map.of( "k", "v" ), "body" ) );
+        assertEquals( "---\nk: v\n---\nbody", FrontmatterWriter.writeLike( null, java.util.Map.of( "k", "v" ), "body" ) );
+    }
 }

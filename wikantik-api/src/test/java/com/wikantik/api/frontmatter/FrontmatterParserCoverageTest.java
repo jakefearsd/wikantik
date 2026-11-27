@@ -139,6 +139,7 @@ class FrontmatterParserCoverageTest {
         final String bad = "---\nfoo: [1, 2\n---\nBody";
         final FrontmatterParseException ex = assertThrows( FrontmatterParseException.class,
                 () -> FrontmatterParser.parseStrict( bad ) );
-        assertTrue( ex.line() > 0, "expected a positive line number — got " + ex.line() );
+        assertEquals( 1, ex.line() );
+        assertEquals( 11, ex.column() );
     }
 }

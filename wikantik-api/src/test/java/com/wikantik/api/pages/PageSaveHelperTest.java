@@ -329,4 +329,135 @@ class PageSaveHelperTest {
         assertNotNull( result );
         assertSame( saved, result );
     }
+
+    // --- attributes written onto the page being saved ------------------------
+
+    private static Page savedPageOf( final PageManager pm ) throws Exception {
+        final ArgumentCaptor< Context > ctx = ArgumentCaptor.forClass( Context.class );
+        verify( pm ).saveText( ctx.capture(), any() );
+        return ctx.getValue().getPage();
+    }
+
+    @Test
+    void saveTextStampsAuthorMarkupSyntaxAndChangeNoteOntoThePageBeingSaved() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        stubPlainSave( pm, "Doc" );
+
+        newHelper( pm ).saveText( "Doc", "body", SaveOptions.builder()
+                .author( "alice" ).markupSyntax( "markdown" ).changeNote( "typo" ).build() );
+
+        final Page page = savedPageOf( pm );
+        verify( page ).setAuthor( "alice" );
+        verify( page ).setAttribute( Page.MARKUP_SYNTAX, "markdown" );
+        verify( page ).setAttribute( Page.CHANGENOTE, "typo" );
+    }
+
+    @Test
+    void saveTextWithNoAttributeOptionsLeavesThePageUntouched() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        stubPlainSave( pm, "Doc" );
+
+        newHelper( pm ).saveText( "Doc", "body", SaveOptions.builder().build() );
+
+        final Page page = savedPageOf( pm );
+        verify( page, never() ).setAuthor( any() );
+        verify( page, never() ).setAttribute( any(), any() );
+    }
+
+    @Test
+    void eachAttributeOptionIsAppliedIndependently() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        stubPlainSave( pm, "Doc" );
+
+        newHelper( pm ).saveText( "Doc", "body", SaveOptions.builder().changeNote( "only a note" ).build() );
+
+        final Page page = savedPageOf( pm );
+        verify( page ).setAttribute( Page.CHANGENOTE, "only a note" );
+        verify( page, never() ).setAuthor( any() );
+        verify( page, never() ).setAttribute( eq( Page.MARKUP_SYNTAX ), any() );
+    }
+
+    // --- the guard handed to the page manager ---------------------------------
+
+    private static SaveGuard guardPassedTo( final PageManager pm ) throws Exception {
+        final ArgumentCaptor< SaveGuard > guard = ArgumentCaptor.forClass( SaveGuard.class );
+        verify( pm ).saveText( any(), any(), guard.capture() );
+        return guard.getValue();
+    }
+
+    @Test
+    void withNoLockingOptionsAndNoExtraGuardThePlainNoneGuardIsUsed() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        newHelper( pm ).saveTracked( "Doc", "body", SaveOptions.builder().build() );
+        assertSame( SaveGuard.NONE, guardPassedTo( pm ) );
+    }
+
+    @Test
+    void anExpectedVersionOfZeroOrLessIsNoVersionCheck() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        newHelper( pm ).saveTracked( "Doc", "body", SaveOptions.builder().expectedVersion( 0 ).build() );
+        assertSame( SaveGuard.NONE, guardPassedTo( pm ) );
+    }
+
+    @Test
+    void anExpectedVersionOfOneIsChecked() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        newHelper( pm ).saveTracked( "Doc", "body", SaveOptions.builder().expectedVersion( 1 ).build() );
+        final SaveGuard guard = guardPassedTo( pm );
+        final Page current = mock( Page.class );
+        when( current.getVersion() ).thenReturn( 2 );
+        assertThrows( VersionConflictException.class, () -> guard.check( current, "text" ) );
+        when( current.getVersion() ).thenReturn( 1 );
+        guard.check( current, "text" );
+    }
+
+    @Test
+    void aStoredVersionBelowOneIsTreatedAsVersionOne() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        newHelper( pm ).saveTracked( "Doc", "body", SaveOptions.builder().expectedVersion( 1 ).build() );
+        final SaveGuard guard = guardPassedTo( pm );
+        final Page unversioned = mock( Page.class );
+        when( unversioned.getVersion() ).thenReturn( -1 );
+        guard.check( unversioned, "text" );
+    }
+
+    @Test
+    void aContentHashAloneIsCheckedAgainstTheStoredText() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        final String hash = PageSaveHelper.computeContentHash( "stored" );
+        newHelper( pm ).saveTracked( "Doc", "body", SaveOptions.builder().expectedContentHash( hash ).build() );
+        final SaveGuard guard = guardPassedTo( pm );
+        guard.check( mock( Page.class ), "stored" );
+        final VersionConflictException ex = assertThrows( VersionConflictException.class,
+                () -> guard.check( mock( Page.class ), "changed" ) );
+        assertEquals( true, ex.isHashConflict() );
+    }
+
+    @Test
+    void anExtraGuardRunsAfterTheOptionsGuardAndBothMustPass() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        final java.util.List< String > order = new java.util.ArrayList<>();
+        final SaveGuard extra = ( current, text ) -> order.add( "extra" );
+        newHelper( pm ).saveTracked( "Doc", "body", SaveOptions.builder().expectedContentHash(
+                PageSaveHelper.computeContentHash( "stored" ) ).build(), extra );
+        final SaveGuard guard = guardPassedTo( pm );
+
+        guard.check( mock( Page.class ), "stored" );
+        assertEquals( java.util.List.of( "extra" ), order );
+
+        order.clear();
+        assertThrows( VersionConflictException.class, () -> guard.check( mock( Page.class ), "changed" ) );
+        assertEquals( java.util.List.of(), order, "the extra guard must not run once the options guard has refused" );
+    }
+
+    @Test
+    void anExtraGuardThatRefusesStopsTheSaveEvenWithNoLockingOptions() throws Exception {
+        final PageManager pm = mock( PageManager.class );
+        final SaveGuard extra = ( current, text ) -> {
+            throw new VersionConflictException( "Doc", 9, 8, false );
+        };
+        newHelper( pm ).saveTracked( "Doc", "body", SaveOptions.builder().build(), extra );
+        final SaveGuard guard = guardPassedTo( pm );
+        assertThrows( VersionConflictException.class, () -> guard.check( null, null ) );
+    }
 }

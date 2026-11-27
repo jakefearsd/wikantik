@@ -50,7 +50,13 @@ class StructuralIndexServiceVerificationCountsTest {
         return new StubStructuralIndexService() {
             @Override
             public List< PageDescriptor > listPagesByFilter( final StructuralFilter filter ) {
-                return pages;
+                // what the real index does: one call returns at most filter.limit() pages
+                return pages.subList( 0, Math.min( filter.limit(), pages.size() ) );
+            }
+
+            @Override
+            public Sitemap sitemap() {
+                return new Sitemap( pages, pages.size(), Instant.EPOCH );
             }
 
             @Override
@@ -85,6 +91,17 @@ class StructuralIndexServiceVerificationCountsTest {
         // authoritative + provisional + stale sums to total pages.
         assertEquals( pages.size(),
                 counts.authoritative() + counts.provisional() + counts.stale() );
+    }
+
+    @Test
+    void tallies_every_page_not_just_the_first_page_of_a_listing() {
+        final List< PageDescriptor > pages = new java.util.ArrayList<>();
+        for ( int i = 0; i < 150; i++ ) {
+            pages.add( desc( "P" + i ) );
+        }
+        final VerificationCounts counts = fake( pages, Map.of() ).verificationCounts();
+        assertEquals( 150, counts.provisional() );
+        assertEquals( 150, counts.noVerification() );
     }
 
     @Test

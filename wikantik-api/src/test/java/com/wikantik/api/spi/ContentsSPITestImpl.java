@@ -32,7 +32,8 @@ public class ContentsSPITestImpl implements ContentsSPI {
 
     @Override
     public Page page( final Engine engine, final String name ) {
-        return null;
+        // A null engine is the "no wiki" probe in WikiTest; any real engine gets a fresh recording page.
+        return engine == null ? null : org.mockito.Mockito.mock( Page.class );
     }
 
 }

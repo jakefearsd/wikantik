@@ -21,6 +21,7 @@ package com.wikantik.api.livevalues;
 import com.wikantik.api.livevalues.LiveValueExpander.Resolution;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
@@ -133,5 +134,110 @@ class LiveValueExpanderTest {
         assertTrue( LiveValueExpander.hasToken( text ) );
         assertFalse( LiveValueExpander.hasToken( "no tokens {{wiki:}}" ) );
         assertTrue( LiveValueExpander.BUILT_IN_NAMES.contains( "tools.admin" ) );
+    }
+
+    @Test
+    void aTokenAtTheVeryStartOfABodyIsExpanded() {
+        assertEquals( "1,142", LiveValueExpander.expandBody( "{{wiki:articles}}", R ) );
+        assertEquals( "1,142", LiveValueExpander.expandText( "{{wiki:articles}}", R ) );
+        assertEquals( "1,142 pages", LiveValueExpander.expandBody( "{{wiki:articles}} pages", R ) );
+    }
+
+    @Test
+    void roundAcceptsAtMostEighteenDigits() {
+        assertEquals( List.of(), LiveValueExpander.malformedTokens( "{{wiki:articles|round=" + "9".repeat( 18 ) + "}}" ) );
+        assertEquals( 1, LiveValueExpander.malformedTokens( "{{wiki:articles|round=" + "9".repeat( 19 ) + "}}" ).size() );
+    }
+
+    @Test
+    void roundMustBeAPositiveWholeNumber() {
+        for ( final String bad : new String[]{ "0", "00", "", "abc", "1.5", "-5", "+5", "1e3", "\u0661" } ) {
+            assertEquals( 1, LiveValueExpander.malformedTokens( "{{wiki:articles|round=" + bad + "}}" ).size(), bad );
+        }
+        for ( final String good : new String[]{ "1", "10", "007", "1000000" } ) {
+            assertEquals( List.of(), LiveValueExpander.malformedTokens( "{{wiki:articles|round=" + good + "}}" ), good );
+        }
+    }
+
+    @Test
+    void malformedTokensListsStraysAndBadArgumentsInDocumentOrder() {
+        final String text = "{{wiki:articles|bogus=1}} ok {{wiki:articles}} then {{wiki:Bad}} and {{wiki:articles|round=0}}";
+        assertEquals( List.of( "{{wiki:articles|bogus=1}}", "{{wiki:Bad}} and {{wiki:articles|round=0",
+                "{{wiki:articles|round=0}}" ), LiveValueExpander.malformedTokens( text ) );
+    }
+
+    @Test
+    void malformedTokensOfTextWithNoOpeningIsEmptyAndNullSafe() {
+        assertEquals( List.of(), LiveValueExpander.malformedTokens( null ) );
+        assertEquals( List.of(), LiveValueExpander.malformedTokens( "no tokens {wiki:x}" ) );
+    }
+
+    @Test
+    void aTokenAtIndexZeroOfMalformedTextIsReported() {
+        assertEquals( List.of( "{{wiki:articles|round=0}}" ), LiveValueExpander.malformedTokens( "{{wiki:articles|round=0}}" ) );
+    }
+
+    // ---- MarkdownCodeScanner behaviour through expandBody ----
+
+    private static final String T = "{{wiki:articles}}";
+
+    @Test
+    void crlfFencesOpenAndCloseSoTextAfterThemIsExpanded() {
+        final String md = "```\r\n" + T + "\r\n```\r\n" + T + "\r\n";
+        assertEquals( "```\r\n" + T + "\r\n```\r\n1,142\r\n", LiveValueExpander.expandBody( md, R ) );
+    }
+
+    @Test
+    void aBacktickFenceWhoseInfoStringHoldsABacktickIsNotAFence() {
+        assertEquals( "``` a`b\n1,142", LiveValueExpander.expandBody( "``` a`b\n" + T, R ) );
+    }
+
+    @Test
+    void aTildeFenceMayHoldABacktickInItsInfoString() {
+        assertEquals( "~~~ a`b\n" + T + "\n~~~\n1,142", LiveValueExpander.expandBody( "~~~ a`b\n" + T + "\n~~~\n" + T, R ) );
+    }
+
+    @Test
+    void aFenceClosesOnlyWithTheSameCharacterAndNoInfoText() {
+        assertEquals( "```\n" + T + "\n~~~\n" + T + "\n``` x\n" + T + "\n```\n1,142",
+                LiveValueExpander.expandBody( "```\n" + T + "\n~~~\n" + T + "\n``` x\n" + T + "\n```\n" + T, R ) );
+    }
+
+    @Test
+    void indentedCodeNeedsAPrecedingBlankLineAndFourSpacesOrATab() {
+        assertEquals( "para\n\n    " + T, LiveValueExpander.expandBody( "para\n\n    " + T, R ) );
+        assertEquals( "para\n\n\t" + T, LiveValueExpander.expandBody( "para\n\n\t" + T, R ) );
+        assertEquals( "para\n    1,142", LiveValueExpander.expandBody( "para\n    " + T, R ), "lazy continuation" );
+        assertEquals( "para\n\n   1,142", LiveValueExpander.expandBody( "para\n\n   " + T, R ), "three spaces" );
+    }
+
+    @Test
+    void indentedCodeContinuesOverConsecutiveIndentedLinesAndBlankLines() {
+        assertEquals( "p\n\n    a\n    " + T + "\n\n    " + T + "\nafter 1,142",
+                LiveValueExpander.expandBody( "p\n\n    a\n    " + T + "\n\n    " + T + "\nafter " + T, R ) );
+    }
+
+    @Test
+    void anIndentedLineInsideAListItemIsNotCodeEvenAfterABlankLine() {
+        assertEquals( "1. item\n\n    1,142", LiveValueExpander.expandBody( "1. item\n\n    " + T, R ) );
+        assertEquals( "* item\n\n\t1,142", LiveValueExpander.expandBody( "* item\n\n\t" + T, R ) );
+    }
+
+    @Test
+    void aTopLevelLineEndsTheListContextSoLaterIndentedCodeIsCode() {
+        assertEquals( "- item\nplain\n\n    " + T, LiveValueExpander.expandBody( "- item\nplain\n\n    " + T, R ) );
+    }
+
+    @Test
+    void inlineCodeIsSkippedWhateverPrecedesIt() {
+        assertEquals( "see `" + T + "` then 1,142", LiveValueExpander.expandBody( "see `" + T + "` then " + T, R ) );
+        assertEquals( "x ``a ` b " + T + "`` " + "1,142", LiveValueExpander.expandBody( "x ``a ` b " + T + "`` " + T, R ) );
+        assertEquals( "1,142 `" + T + "` 1,142", LiveValueExpander.expandBody( T + " `" + T + "` " + T, R ) );
+    }
+
+    @Test
+    void blockQuoteAndListPrefixesDoNotHideFences() {
+        assertEquals( "> ```\n> " + T + "\n> ```\n1,142", LiveValueExpander.expandBody( "> ```\n> " + T + "\n> ```\n" + T, R ) );
+        assertEquals( "- ```\n  " + T + "\n  ```\n1,142", LiveValueExpander.expandBody( "- ```\n  " + T + "\n  ```\n" + T, R ) );
     }
 }

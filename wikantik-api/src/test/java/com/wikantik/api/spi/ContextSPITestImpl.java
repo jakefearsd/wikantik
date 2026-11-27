@@ -30,7 +30,12 @@ public class ContextSPITestImpl implements ContextSPI {
 
     @Override
     public Context create( final Engine engine, final Page page ) {
-        return null;
+        if ( engine == null || page == null ) {
+            return null;
+        }
+        final Context context = org.mockito.Mockito.mock( Context.class );
+        org.mockito.Mockito.when( context.getPage() ).thenReturn( page );
+        return context;
     }
 
     @Override

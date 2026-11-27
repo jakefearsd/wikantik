@@ -103,8 +103,9 @@ public interface StructuralIndexService {
      * {@code noVerification} separately counts pages whose
      * {@link #verificationOf(String)} is empty.
      *
-     * <p>Default implementation derived from {@link #listPagesByFilter} +
-     * {@link #verificationOf}; the single source of truth for the tally used
+     * <p>Default implementation derived from {@link #sitemap} (every page; a
+     * {@link #listPagesByFilter} call is capped at 100) + {@link #verificationOf};
+     * the single source of truth for the tally used
      * by {@code /admin/verification} and the admin overview dashboard.</p>
      */
     default VerificationCounts verificationCounts() {
@@ -112,7 +113,7 @@ public interface StructuralIndexService {
         int provisional = 0;
         int stale = 0;
         int noVerification = 0;
-        for ( final PageDescriptor p : listPagesByFilter( StructuralFilter.none() ) ) {
+        for ( final PageDescriptor p : sitemap().pages() ) {
             final Optional< Verification > found = verificationOf( p.canonicalId() );
             if ( found.isEmpty() ) {
                 noVerification++;

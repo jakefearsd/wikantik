@@ -45,7 +45,8 @@ class FrontmatterParserStrictTest {
                 () -> FrontmatterParser.parseStrict( bad ),
                 "unquoted colon must surface as a strict-parse error" );
         assertNotNull( ex.getMessage(), "exception must carry SnakeYAML's message" );
-        assertTrue( ex.line() > 0, "line should be 1-based and positive — got " + ex.line() );
+        assertEquals( 1, ex.line(), "the title is the first YAML line (1-based)" );
+        assertEquals( 27, ex.column(), "SnakeYAML points at the second colon (1-based column)" );
     }
 
     @Test

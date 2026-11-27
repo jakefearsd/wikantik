@@ -320,6 +320,10 @@ public interface AttachmentManager {
         //  Some browsers send the full path info with the filename, so we need
         //  to remove it here by simply splitting along slashes and then taking the path.
         final String[] splitpath = filename.split( "[/\\\\]" );
+        if ( splitpath.length == 0 ) {
+            // "/" or "\\" alone: String.split drops the trailing empty strings and leaves nothing to take.
+            throw new WikiException( "attach.empty.file" );
+        }
         filename = splitpath[splitpath.length-1];
 
         // Should help with IE 5.22 on OSX, and strip trailing dots that would

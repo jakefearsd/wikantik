@@ -18,6 +18,7 @@
  */
 package com.wikantik.parser.markdown;
 
+import com.wikantik.testing.Fuzz;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -38,7 +39,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class BlockIdsPreCheckFuzzTest {
 
-    private static final int INPUTS = 60_000;
+    private static final int INPUTS = Fuzz.cases( 60_000 );
 
     private static final String[] TOKENS = {
         "^id", "^ab-1", " ", "\t", "\n", "\r\n", "\n\n", "> ", ">", "- ", "1. ", "  ", "    ", "[{ALLOW view Admin}]",
@@ -50,7 +51,7 @@ class BlockIdsPreCheckFuzzTest {
 
     @Test
     void thePreCheckedAnswersAreTheUncheckedOnes() {
-        final Random random = new Random( 0x9EC4L );
+        final Random random = new Random( Fuzz.seed( 0x9EC4L ) );
         final List< String > failures = new ArrayList<>();
         int withMarkers = 0;
         for ( int i = 0; i < INPUTS && failures.size() < 10; i++ ) {
@@ -83,7 +84,7 @@ class BlockIdsPreCheckFuzzTest {
                 failures.add( "threw " + e + ": " + esc( text ) );
             }
         }
-        assertEquals( List.of(), failures, String.join( "\n", failures ) );
+        assertEquals( List.of(), failures, Fuzz.reproduce() + "\n" + String.join( "\n", failures ) );
         assertTrue( withMarkers > INPUTS / 100, "too few soups hold a marker: " + withMarkers );
     }
 

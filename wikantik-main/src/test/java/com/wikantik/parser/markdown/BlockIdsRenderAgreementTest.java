@@ -18,6 +18,7 @@
  */
 package com.wikantik.parser.markdown;
 
+import com.wikantik.testing.Fuzz;
 import com.wikantik.auth.acl.AclDirectiveText;
 import com.wikantik.parser.markdown.BlockIds.Block;
 import org.junit.jupiter.api.Test;
@@ -213,8 +214,8 @@ class BlockIdsRenderAgreementTest {
         assertEquals( "quotebody", BlockIds.fingerprint( body.plainText() ) );
     }
 
-    /** Cases for the property test: enough that every shape the generator can make comes up many times. */
-    private static final int PROPERTY_CASES = 30_000;
+    /** Cases for the property test (deep run, see {@link Fuzz}): enough that every shape the generator makes comes up many times. */
+    private static final int PROPERTY_CASES = Fuzz.cases( 30_000 );
 
     /**
      * The property behind the endpoints, over generated pages: {@code list(raw)} equals the list of the text a render
@@ -225,7 +226,7 @@ class BlockIdsRenderAgreementTest {
      */
     @Test
     void generatedPagesAgreeWithTheTextTheRenderParses() {
-        final BlockTextGenerator generator = new BlockTextGenerator( 0xB10C5L );
+        final BlockTextGenerator generator = new BlockTextGenerator( Fuzz.seed( 0xB10C5L ) );
         final List< String > problems = new ArrayList<>();
         int withRules = 0;
         int withIds = 0;
@@ -242,7 +243,7 @@ class BlockIdsRenderAgreementTest {
                 problems.add( "#" + i + " " + esc( raw ) + " -> threw " + e );
             }
         }
-        assertEquals( List.of(), problems, String.join( "\n", problems ) );
+        assertEquals( List.of(), problems, Fuzz.reproduce() + "\n" + String.join( "\n", problems ) );
         // refusals are rare and only of the known kinds (an unknown one is a problem above)
         final int refused = REFUSALS.values().stream().mapToInt( Integer::intValue ).sum();
         assertTrue( refused < PROPERTY_CASES / 10 / 10, "assign refused " + refused + " of the tagged cases: " + REFUSALS );

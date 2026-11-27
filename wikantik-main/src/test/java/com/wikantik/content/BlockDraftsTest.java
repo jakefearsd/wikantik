@@ -18,6 +18,7 @@
  */
 package com.wikantik.content;
 
+import com.wikantik.testing.Fuzz;
 import com.google.gson.JsonParser;
 import com.wikantik.parser.markdown.BlockIds;
 import com.wikantik.parser.markdown.BlockIds.Block;
@@ -220,16 +221,17 @@ class BlockDraftsTest {
     }
 
     /**
-     * 2,500 generated bodies — half opening with {@code ---} — behind frontmatter, every action, against the reader (run
-     * at 6,000 when written: 0 problems; trimmed to keep the unit suite quick, the page-mode run above is 6,000).
+     * 2,500 generated bodies in a deep run ({@link Fuzz}) — half opening with {@code ---} — behind frontmatter, every
+     * action, against the reader (run at 6,000 when written: 0 problems).
      */
     @Test
     void generatedBodiesBehindFrontmatterNeverOrphanMisTargetOrDangle() {
-        final BlockTextGenerator generator = new BlockTextGenerator( 0xB0D1E5L );
-        final Random random = new Random( 0x5EED5L );
+        final BlockTextGenerator generator = new BlockTextGenerator( Fuzz.seed( 0xB0D1E5L ) );
+        final Random random = new Random( Fuzz.seed( 0x5EED5L ) );
+        final int cases = Fuzz.cases( 2_500 );
         final List< String > problems = new ArrayList<>();
         int actions = 0;
-        for ( int i = 0; i < 2_500 && problems.size() < 20; i++ ) {
+        for ( int i = 0; i < cases && problems.size() < 20; i++ ) {
             final String text = switch ( random.nextInt( 4 ) ) {
                 case 0 -> "---\n" + generator.next();
                 case 1 -> "---\n" + generator.next() + "\n---\n" + generator.next();
@@ -242,18 +244,19 @@ class BlockDraftsTest {
                 problems( text, offset, fm ).forEach( p -> problems.add( "#" + n + " " + esc( text ) + " @" + offset + ": " + p ) );
             }
         }
-        assertEquals( List.of(), problems, String.join( "\n", problems ) );
-        assertTrue( actions > 12_000, "actions: " + actions );
+        assertEquals( List.of(), problems, Fuzz.reproduce() + "\n" + String.join( "\n", problems ) );
+        assertTrue( actions > cases * 4, "actions: " + actions );
     }
 
-    /** 6,000 generated pages, every action: 0 orphans, 0 mis-targets, 0 dangling markers. */
+    /** 6,000 generated pages in a deep run ({@link Fuzz}), every action: 0 orphans, 0 mis-targets, 0 dangling markers. */
     @Test
     void generatedPagesNeverOrphanMisTargetOrDangle() {
-        final BlockTextGenerator generator = new BlockTextGenerator( 0xD2AF7L );
-        final Random random = new Random( 0x0FF5E7L );
+        final BlockTextGenerator generator = new BlockTextGenerator( Fuzz.seed( 0xD2AF7L ) );
+        final Random random = new Random( Fuzz.seed( 0x0FF5E7L ) );
+        final int cases = Fuzz.cases( 6_000 );
         final List< String > problems = new ArrayList<>();
         int actions = 0;
-        for ( int i = 0; i < 6_000 && problems.size() < 20; i++ ) {
+        for ( int i = 0; i < cases && problems.size() < 20; i++ ) {
             final String text = generator.next();
             for ( final int offset : offsets( text, random ) ) {
                 actions++;
@@ -261,7 +264,7 @@ class BlockDraftsTest {
                 problems( text, offset ).forEach( p -> problems.add( "#" + n + " " + esc( text ) + " @" + offset + ": " + p ) );
             }
         }
-        assertEquals( List.of(), problems, String.join( "\n", problems ) );
-        assertTrue( actions > 30_000, "actions: " + actions );
+        assertEquals( List.of(), problems, Fuzz.reproduce() + "\n" + String.join( "\n", problems ) );
+        assertTrue( actions > cases * 4, "actions: " + actions );
     }
 }

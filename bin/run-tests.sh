@@ -78,7 +78,10 @@ There are two "everything" levels:
 
 MODES (default, no args: the default gate = unit, then default-gate IT modules)
   --all                  EVERYTHING: unit + default-gate IT modules + scim-fullloop
-                         (and npm audit findings FAIL the run instead of warning)
+                         (and npm audit findings FAIL the run instead of warning;
+                         seeded generator tests run every case on fresh seeds)
+  --deep                 Seeded generator tests run every case on fresh seeds
+                         (-Dtests.fuzz=deep; the gate runs a twentieth on fixed seeds)
   --unit                 Unit reactor only (Phase 1)
   --it                   Default-gate IT modules only (assumes --unit ran)
   --module <name>        One IT module: rest|sso|custom-jdbc|dense|scim-fullloop
@@ -323,6 +326,7 @@ RUN_IT=1
 RUN_FULLLOOP=0
 COLLAB=0         # --collab: IT modules run with collaborative editing on
 STRICT_AUDIT=0   # --all: npm audit findings fail the run instead of warning
+FUZZ_MVN=()      # --all/--deep: -Dtests.fuzz=deep (see com.wikantik.testing.Fuzz)
 ONE_MODULE=""
 
 # Unit-phase build parallelism. Default 1C (one thread per core). The prior
@@ -365,7 +369,8 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --help|-h) usage; exit 0 ;;
     --list)    list_modules; exit 0 ;;
-    --all)     RUN_UNIT=1; RUN_IT=1; RUN_FULLLOOP=1; STRICT_AUDIT=1 ;;
+    --all)     RUN_UNIT=1; RUN_IT=1; RUN_FULLLOOP=1; STRICT_AUDIT=1; FUZZ_MVN=(-Dtests.fuzz=deep) ;;
+    --deep)    FUZZ_MVN=(-Dtests.fuzz=deep) ;;
     --collab)  COLLAB=1 ;;
     --fullloop) RUN_UNIT=0; RUN_IT=0; ONE_MODULE="scim-fullloop" ;;
     --unit)    RUN_IT=0 ;;
@@ -510,7 +515,7 @@ unit_phase_rc=0
 if [ "$RUN_UNIT" = 1 ]; then
   # Parallel unit reactor: compile all, run unit tests, install artifacts (incl. WAR).
   run_step "Phase 1: unit reactor (-T ${UNIT_PARALLELISM} -DskipITs)" "${LOG_DIR}/phase1-unit.log" \
-    clean install -T "${UNIT_PARALLELISM}" -DskipITs -Dtests.requireDocker=true
+    clean install -T "${UNIT_PARALLELISM}" -DskipITs -Dtests.requireDocker=true "${FUZZ_MVN[@]}"
   unit_phase_rc="$last_step_rc"
 fi
 

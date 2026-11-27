@@ -18,6 +18,7 @@
  */
 package com.wikantik.auth.acl;
 
+import com.wikantik.testing.Fuzz;
 import com.wikantik.api.frontmatter.FrontmatterParser;
 import com.wikantik.parser.markdown.RenderPathAccessRules;
 import com.wikantik.util.TrackedText;
@@ -40,7 +41,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class AclDirectiveTextGuaranteeFuzzTest {
 
-    private static final int INPUTS = 120_000;
+    private static final int INPUTS = Fuzz.cases( 120_000 );
 
     private static final String[] FRAGMENTS = {
             "[{ALLOW view pZa}]", "[{ALLOW edit pZb,\n pZc}]", "[{DENY view pZd}]()", "[{ALLOW VIEW pZe}]", "[{ALLOWED edit pZf}]",
@@ -52,7 +53,7 @@ class AclDirectiveTextGuaranteeFuzzTest {
 
     @Test
     void nothingEitherReadingFindsSurvivesOnSeededSoups() {
-        final Random random = new Random( 0x5A4E5L );
+        final Random random = new Random( Fuzz.seed( 0x5A4E5L ) );
         final List< String > failures = new ArrayList<>();
         int withRules = 0;
         for ( int i = 0; i < INPUTS && failures.size() < 10; i++ ) {
@@ -69,14 +70,14 @@ class AclDirectiveTextGuaranteeFuzzTest {
                 withRules++;
             }
         }
-        assertTrue( failures.isEmpty(), failures.size() + " violation(s): " + String.join( "\n", failures ) );
+        assertTrue( failures.isEmpty(), failures.size() + " violation(s), " + Fuzz.reproduce() + ":\n" + String.join( "\n", failures ) );
         assertTrue( withRules > INPUTS / 10, "too few soups carry an enforced rule: " + withRules );
     }
 
     @Test
     void theFailClosedPathLeavesNothingEitherReadingFinds() {
         // The path taken when the render path's reading cannot be had: it must hold the guarantee on its own.
-        final Random random = new Random( 0xFA11L );
+        final Random random = new Random( Fuzz.seed( 0xFA11L ) );
         final List< String > failures = new ArrayList<>();
         for ( int i = 0; i < INPUTS / 4 && failures.size() < 10; i++ ) {
             final StringBuilder sb = new StringBuilder();
@@ -89,7 +90,7 @@ class AclDirectiveTextGuaranteeFuzzTest {
                 failures.add( "#" + i + " " + why + " in=" + esc( in ) );
             }
         }
-        assertTrue( failures.isEmpty(), failures.size() + " violation(s): " + String.join( "\n", failures ) );
+        assertTrue( failures.isEmpty(), failures.size() + " violation(s), " + Fuzz.reproduce() + ":\n" + String.join( "\n", failures ) );
     }
 
     /**
@@ -99,7 +100,7 @@ class AclDirectiveTextGuaranteeFuzzTest {
      */
     @Test
     void theTrackedStripIsTheStripWithAnExactMapBack() {
-        final Random random = new Random( 0x7AC4L );
+        final Random random = new Random( Fuzz.seed( 0x7AC4L ) );
         final List< String > failures = new ArrayList<>();
         for ( int i = 0; i < INPUTS / 4 && failures.size() < 10; i++ ) {
             final StringBuilder sb = new StringBuilder();
@@ -114,7 +115,7 @@ class AclDirectiveTextGuaranteeFuzzTest {
                 failures.add( "#" + i + " " + ( why != null ? why : "fail-closed: " + closed ) + " in=" + esc( in ) );
             }
         }
-        assertTrue( failures.isEmpty(), failures.size() + " violation(s): " + String.join( "\n", failures ) );
+        assertTrue( failures.isEmpty(), failures.size() + " violation(s), " + Fuzz.reproduce() + ":\n" + String.join( "\n", failures ) );
     }
 
     private static String mapProblem( final String in, final TrackedText tracked, final String expected ) {

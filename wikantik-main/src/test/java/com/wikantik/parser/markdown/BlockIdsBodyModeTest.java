@@ -18,6 +18,7 @@
  */
 package com.wikantik.parser.markdown;
 
+import com.wikantik.testing.Fuzz;
 import com.wikantik.api.frontmatter.FrontmatterWriter;
 import org.junit.jupiter.api.Test;
 
@@ -177,12 +178,13 @@ class BlockIdsBodyModeTest {
     /** Generated bodies — some opening with {@code ---}, some frontmatter-shaped — behind every frontmatter. */
     @Test
     void generatedBodiesReadAsTheReaderReadsThemBehindFrontmatter() {
-        final BlockTextGenerator generator = new BlockTextGenerator( 0xB0D7L );
-        final Random random = new Random( 0xF00DL );
+        final BlockTextGenerator generator = new BlockTextGenerator( Fuzz.seed( 0xB0D7L ) );
+        final Random random = new Random( Fuzz.seed( 0xF00DL ) );
+        final int cases = Fuzz.cases( 3_000 );
         final List< String > fms = frontmatters();
         final List< String > problems = new ArrayList<>();
         int checked = 0;
-        for ( int i = 0; i < 3_000 && problems.size() < 20; i++ ) {
+        for ( int i = 0; i < cases && problems.size() < 20; i++ ) {
             String body = generator.next();
             switch ( random.nextInt( 4 ) ) {
                 case 0 -> body = "---\n" + body;
@@ -195,7 +197,7 @@ class BlockIdsBodyModeTest {
             differences( fm, b ).forEach( d -> problems.add( "#" + n + " " + esc( fm ) + " + " + esc( b ) + ": " + d ) );
             checked++;
         }
-        assertEquals( List.of(), problems, String.join( "\n", problems ) );
-        assertTrue( checked >= 3_000 );
+        assertEquals( List.of(), problems, Fuzz.reproduce() + "\n" + String.join( "\n", problems ) );
+        assertTrue( checked >= cases );
     }
 }

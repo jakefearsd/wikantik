@@ -18,6 +18,7 @@
  */
 package com.wikantik.collab.testing;
 
+import com.wikantik.testing.Fuzz;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -42,7 +43,8 @@ import static org.junit.jupiter.api.Assertions.fail;
  *
  * <p>A seed that ends with the stub poisoned is an unsupported scenario (Task 10 ruling): neither a pass nor a failure,
  * but more than 1% of them fails the run so a regression cannot hide there. The session has no such state: its
- * tolerance is 0. {@code -Dcollab.fuzz.seeds} scales the run.</p>
+ * tolerance is 0. The gate runs seeds 1 to 100; a deep run ({@link Fuzz}) runs 2,000 seeds from a fresh starting point;
+ * {@code -Dcollab.fuzz.seeds} sets the count either way.</p>
  */
 class CollabConvergenceFuzzTest {
 
@@ -56,9 +58,10 @@ class CollabConvergenceFuzzTest {
     @ParameterizedTest( name = "{0} {1}" )
     @MethodSource( "serversAndProfiles" )
     void everyProfileConverges( final SimTarget target, final SimProfile profile ) {
-        final int seeds = Integer.getInteger( "collab.fuzz.seeds", DEFAULT_SEEDS );
+        final int seeds = Integer.getInteger( "collab.fuzz.seeds", Fuzz.cases( DEFAULT_SEEDS ) );
+        final long first = Fuzz.deep() ? 1 + ( Fuzz.seed( 0L ) >>> 2 ) : 1;
         int unsupported = 0;
-        for( long seed = 1; seed <= seeds; seed++ ) {
+        for( long seed = first; seed < first + seeds; seed++ ) {
             final int clients = 2 + (int) ( seed % 3 );
             final SimTrace t = target.scheduler( seed, profile, clients ).run( STEPS );
             switch( t.outcome().status() ) {

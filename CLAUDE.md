@@ -350,6 +350,7 @@ each is recorded in [docs/developer/ProjectReference.md](docs/developer/ProjectR
 ### Testing Approach
 
 - **Database tests**: `@RequiresPostgres` + `PostgresTestDb.createDataSource()`; call `PostgresTestDb.truncate(…)` in `@BeforeEach` (the container is shared — never `DROP`/`ALTER`). Test rollbacks with `FaultInjectingDataSource`. Never hand-write `CREATE TABLE`; write the migration.
+- **Seeded generator (fuzz) tests**: take counts and seeds from `com.wikantik.testing.Fuzz` (`Fuzz.cases(n)`, `Fuzz.seed(written)`, `Fuzz.reproduce()` in the failure message). The gate runs a twentieth of the cases on the written seeds; `bin/run-tests.sh --all` / `--deep` (`-Dtests.fuzz=deep`) runs every case on fresh seeds. A fixed seed re-checks the same inputs every build, so the full count belongs in the deep run, not the gate.
 
 ### Critical: Integration Test Parallelism
 

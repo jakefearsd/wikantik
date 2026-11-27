@@ -88,8 +88,8 @@ public class DefaultPageGraphService implements PageGraphService {
         this.engine = engine;
     }
 
-    /** Drop the cached snapshot. Called by the engine when wikilink edges
-     *  may have changed (page saved, deleted, references rebuilt). */
+    /** Drop the cached snapshot. Called by {@code StructuralIndexEventListener} once a page save, delete or rename
+     *  has reached the structural index (the reference manager has already taken the save's links in by then). */
     public void invalidateCache() {
         this.cachedSnapshot = null;
         this.cacheTimestamp = null;

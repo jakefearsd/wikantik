@@ -51,6 +51,42 @@ class StructuralIndexEventListenerTest {
         WikiEventManager.removeWikiEventListener( pageManager, listener );
     }
 
+    /** The Page Graph snapshot is dropped after the index has taken each change in, so a rebuild never reads the old page. */
+    @Test
+    void the_after_change_hook_runs_after_each_save_delete_and_rename_is_indexed() {
+        final Runnable afterChange = mock( Runnable.class );
+        final StructuralIndexEventListener hooked = new StructuralIndexEventListener( svc, afterChange );
+        final org.mockito.InOrder order = inOrder( svc, afterChange );
+
+        hooked.actionPerformed( new WikiPageEvent( this, WikiPageEvent.POST_SAVE_END, "Saved" ) );
+        order.verify( svc ).onPageSaved( "Saved" );
+        order.verify( afterChange ).run();
+
+        hooked.actionPerformed( new WikiPageEvent( this, WikiPageEvent.PAGE_DELETED, "Gone" ) );
+        order.verify( svc ).onPageDeleted( "Gone" );
+        order.verify( afterChange ).run();
+
+        hooked.actionPerformed( new WikiPageRenameEvent( this, "Old", "New" ) );
+        order.verify( svc ).onPageRenamed( "Old", "New" );
+        order.verify( afterChange ).run();
+
+        hooked.actionPerformed( new WikiPageEvent( this, WikiPageEvent.POST_SAVE, "Ignored" ) );
+        verifyNoMoreInteractions( afterChange );
+    }
+
+    @Test
+    void the_after_change_hook_still_runs_when_indexing_the_change_fails() {
+        final Runnable afterChange = mock( Runnable.class );
+        doThrow( new IllegalStateException( "index down" ) ).when( svc ).onPageSaved( "Saved" );
+        final StructuralIndexEventListener hooked = new StructuralIndexEventListener( svc, afterChange );
+        try {
+            hooked.actionPerformed( new WikiPageEvent( this, WikiPageEvent.POST_SAVE_END, "Saved" ) );
+        } catch ( final IllegalStateException expected ) {
+            // whether the listener base swallows it is not this test's concern
+        }
+        verify( afterChange ).run();
+    }
+
     @Test
     void post_save_does_not_trigger_onPageSaved() {
         // A save fires POST_SAVE_END once; reacting to POST_SAVE as well would run the sync twice per save.

@@ -93,10 +93,17 @@ public final class PageGraphWiringHelper {
 
         wireLiveValues( props, coreSubsystem, structuralIndex, engine );
 
+        // Page Graph snapshot service — backs the /page-graph React route. Built before the index listener, which
+        // drops its cached snapshot once each save, delete or rename has reached the index.
+        final DefaultPageGraphService pageGraphService =
+            new DefaultPageGraphService(
+                structuralIndex, referenceManager, pageManager );
+        pageGraphService.setEngine( engine );
+
         // WikiEventManager holds listeners as WeakReferences — keep a strong
         // reference in the managers map so the listener is not GC'd between events.
         final StructuralIndexEventListener structuralIndexListener =
-            new StructuralIndexEventListener( structuralIndex );
+            new StructuralIndexEventListener( structuralIndex, pageGraphService::invalidateCache );
         final com.wikantik.page.subsystem.PageSubsystem.Services pages = engine.getPageSubsystem();
         structuralIndexListener.register( pageManager, filterManager, pages == null ? null : pages.pageRenamer() );
         engine.setManager( StructuralIndexEventListener.class, structuralIndexListener );
@@ -119,11 +126,6 @@ public final class PageGraphWiringHelper {
         }, "structural-index-bootstrap" ).start();
         LOG.info( "StructuralIndexService registered; initial rebuild dispatched" );
 
-        // Page Graph snapshot service — backs the /page-graph React route.
-        final DefaultPageGraphService pageGraphService =
-            new DefaultPageGraphService(
-                structuralIndex, referenceManager, pageManager );
-        pageGraphService.setEngine( engine );
         engine.setManager( com.wikantik.api.pagegraph.PageGraphService.class, pageGraphService );
         LOG.info( "PageGraphService registered" );
 

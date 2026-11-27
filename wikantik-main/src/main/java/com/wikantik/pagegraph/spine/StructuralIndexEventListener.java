@@ -43,9 +43,19 @@ public class StructuralIndexEventListener extends PageLifecycleListener {
     private static final Logger LOG = LogManager.getLogger( StructuralIndexEventListener.class );
 
     private final DefaultStructuralIndexService service;
+    private final Runnable afterChange;
 
     public StructuralIndexEventListener( final DefaultStructuralIndexService service ) {
+        this( service, () -> { } );
+    }
+
+    /**
+     * @param afterChange run after the index has taken in each save, delete or rename (even when that failed), so a
+     *                    cache built from the index (the Page Graph snapshot) is dropped only once the index is current
+     */
+    public StructuralIndexEventListener( final DefaultStructuralIndexService service, final Runnable afterChange ) {
         this.service = service;
+        this.afterChange = afterChange;
     }
 
     public void register( final PageManager pageManager, final FilterManager filterManager ) {
@@ -69,17 +79,29 @@ public class StructuralIndexEventListener extends PageLifecycleListener {
 
     @Override
     protected void onSaved( final String page ) {
-        service.onPageSaved( page );
+        try {
+            service.onPageSaved( page );
+        } finally {
+            afterChange.run();
+        }
     }
 
     @Override
     protected void onDeleted( final String page ) {
-        service.onPageDeleted( page );
+        try {
+            service.onPageDeleted( page );
+        } finally {
+            afterChange.run();
+        }
     }
 
     @Override
     protected void onRenamed( final String from, final String to ) {
-        service.onPageRenamed( from, to );
+        try {
+            service.onPageRenamed( from, to );
+        } finally {
+            afterChange.run();
+        }
     }
 
     @Override

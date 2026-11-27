@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+- The Page Graph showed the graph as it was up to a minute before: its snapshot cache was never dropped when a page was saved, deleted or renamed. It is now dropped once each change reaches the structural index.
+
 ## [2.8.11] - 2026-11-27
 
 - Build: seeded generator tests run a twentieth of their cases on fixed seeds in the gate and every case on fresh seeds under `bin/run-tests.sh --all` or `--deep` (`com.wikantik.testing.Fuzz`). wikantik-main's unit run no longer waits minutes on one 6,000-page test.

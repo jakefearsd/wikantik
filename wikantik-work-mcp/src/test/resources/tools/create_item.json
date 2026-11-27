@@ -41,7 +41,7 @@
       },
       "productKey": {
         "type": "string",
-        "description": "The product\u0027s key.",
+        "description": "The product\u0027s key. Omit it to use the project\u0027s default product; pass an empty string for none.",
         "examples": [
           "web"
         ]

@@ -213,4 +213,21 @@ class CreateItemToolTest {
             args( "project", "P", "level", "task", "kind", "magic", "title", "T" ) ) ).startsWith( "kind: " ) );
         verifyNoInteractions( w.svc );
     }
+
+    @Test
+    void productKeyArgumentExplainsTheDefault() {
+        final String json = new com.google.gson.Gson().toJson( tool.definition() );
+        org.junit.jupiter.api.Assertions.assertTrue( json.contains( "Omit it to use the project's default product" )
+            || json.contains( "Omit it to use the project\\u0027s default product" ), json );
+    }
+
+    @Test
+    void emptyProductKeyIsPassedThroughAsEmpty() throws SQLException {
+        when( w.svc.createItem( any(), any() ) )
+            .thenReturn( MockWork.view( MockWork.item( "PLAT-5", WorkStatus.DRAFT, 1, null, null ) ) );
+        tool.call( w.agent, args( "project", "PLAT", "level", "task", "title", "T", "productKey", "" ) );
+        final ArgumentCaptor< ItemDraft > d = ArgumentCaptor.forClass( ItemDraft.class );
+        verify( w.svc ).createItem( any(), d.capture() );
+        assertEquals( "", d.getValue().productKey() );
+    }
 }

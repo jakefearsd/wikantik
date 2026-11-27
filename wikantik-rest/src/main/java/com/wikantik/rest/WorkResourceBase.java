@@ -327,19 +327,36 @@ public abstract class WorkResourceBase extends RestServletBase {
         return WorkSummaries.board( columns, viewer, lookupFor( viewer ), this::toTree );
     }
 
-    /** A project's JSON with the viewer's {@code role} and {@code archived} (read-only) added. */
-    protected JsonObject projectWithRole( final Project project, final String role ) {
+    /**
+     * A project's JSON with the viewer's {@code role} and {@code archived} (read-only) added. The default product
+     * is shown by its key ({@code defaultProductKey}, null when none), never by its id.
+     */
+    protected JsonObject projectWithRole( final Project project, final String role,
+                                          final java.util.Map< Long, String > productKeys ) {
         final JsonObject o = WorkJson.GSON.toJsonTree( project ).getAsJsonObject();
+        o.remove( "defaultProductId" );
+        o.addProperty( "defaultProductKey",
+            project.defaultProductId() == null ? null : productKeys.get( project.defaultProductId() ) );
         o.addProperty( "role", role );
         o.addProperty( "archived", project.archivedAt() != null );
         return o;
     }
 
+    /** Product id to key, read once per response. */
+    protected java.util.Map< Long, String > productKeys( final Call c ) throws Exception {
+        final java.util.Map< Long, String > keys = new java.util.HashMap<>();
+        for ( final com.wikantik.work.Product p : c.svc.listProducts( c.actor ) ) {
+            keys.put( p.id(), p.key() );
+        }
+        return keys;
+    }
+
     /** Every project the caller can see, each with the caller's role (resolved in one pass by the service). */
     protected JsonArray visibleProjects( final Call c ) throws Exception {
         final JsonArray out = new JsonArray();
+        final java.util.Map< Long, String > keys = productKeys( c );
         for ( final WorkService.ProjectRole pr : c.svc.listProjectsWithRoles( c.actor ) ) {
-            out.add( projectWithRole( pr.project(), pr.role().wire() ) );
+            out.add( projectWithRole( pr.project(), pr.role().wire(), keys ) );
         }
         return out;
     }
@@ -347,7 +364,7 @@ public abstract class WorkResourceBase extends RestServletBase {
     /** One project with the caller's role (404 when hidden or unknown). */
     protected JsonObject projectJson( final Call c, final String key ) throws Exception {
         final Project p = c.svc.project( c.actor, key );
-        return projectWithRole( p, c.svc.roleIn( c.actor, key ).wire() );
+        return projectWithRole( p, c.svc.roleIn( c.actor, key ).wire(), productKeys( c ) );
     }
 
     // ---- request parsing helpers

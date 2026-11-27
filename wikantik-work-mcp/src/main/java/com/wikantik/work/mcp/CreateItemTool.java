@@ -51,7 +51,7 @@ public final class CreateItemTool extends WorkMcpTool {
         .requiredArg( "title", "string", "The title.", "Retry failed uploads" )
         .arg( "body", "string", "The body, Markdown source.", "Why and what." )
         .arg( "parentKey", "string", "The parent item's key.", "PLAT-2" )
-        .arg( "productKey", "string", "The product's key.", "web" )
+        .arg( "productKey", "string", "The product's key. Omit it to use the project's default product; pass an empty string for none.", "web" )
         .arg( "kind", "string", "software (default), docs or admin.", "software" )
         .arg( "type", "string", "feature (default), bug or chore; an epic is always a feature.", "bug" )
         .arg( "labels", labelsSchema(), false )

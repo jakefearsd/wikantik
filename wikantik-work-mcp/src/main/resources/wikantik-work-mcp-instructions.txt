@@ -33,7 +33,7 @@ release_item       key and an optional note. Gives up your claim; the item goes 
                    Returns {key, status}.
 create_item        project, level (epic, story or task), title, and optionally body, parentKey, productKey, kind,
                    type (feature, bug or chore), labels (a list), priority, queue. Returns {key, version,
-                   status}. A new item is always a draft with no assignee, for a person to refine; status and assignee are refused by name. You cannot
+                   status}. productKey: omit it to use the project's default product; pass an empty string for none. A new item is always a draft with no assignee, for a person to refine; status and assignee are refused by name. You cannot
                    move a draft out of draft: hand it to a person (status draft) with a note.
 open_change        key, branch, and optionally base_branch, head_sha, review_url, first_commit_at. Records a branch of work on the
                    item and returns the change with its id. Name the branch work/<ITEM-KEY>-<slug>. With

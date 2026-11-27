@@ -326,6 +326,24 @@ class WorkItemResourceTest {
         assertEquals( 400, get( null, Map.of( "project", "PLAT", "dueBefore", "tomorrow" ) ).status() );
     }
 
+    private com.wikantik.work.ItemDraft createdDraft( final String extra ) throws Exception {
+        Mockito.when( svc.createItem( eq( ALICE ), any() ) ).thenReturn( WorkHttp.view( "PLAT-1", null, 1 ) );
+        send( "POST", "/api/work/items", null, "{\"project\":\"PLAT\",\"level\":\"task\",\"title\":\"T\"" + extra + "}" );
+        final ArgumentCaptor< com.wikantik.work.ItemDraft > d = ArgumentCaptor.forClass( com.wikantik.work.ItemDraft.class );
+        Mockito.verify( svc ).createItem( eq( ALICE ), d.capture() );
+        return d.getValue();
+    }
+
+    @Test
+    void blankProductKeyReachesTheDraftAsBlank() throws Exception {
+        assertEquals( "", createdDraft( ",\"productKey\":\"\"" ).productKey() );
+    }
+
+    @Test
+    void absentProductKeyReachesTheDraftAsNull() throws Exception {
+        org.junit.jupiter.api.Assertions.assertNull( createdDraft( "" ).productKey() );
+    }
+
     @Test
     void createsAnItemWith201() throws Exception {
         Mockito.when( svc.createItem( eq( ALICE ), any() ) ).thenReturn( WorkHttp.view( "PLAT-1", null, 1 ) );

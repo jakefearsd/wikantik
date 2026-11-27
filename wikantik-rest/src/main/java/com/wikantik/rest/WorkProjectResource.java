@@ -44,7 +44,8 @@ public class WorkProjectResource extends WorkResourceBase {
             }
             final Project p = c.svc.createProject( c.actor, requiredString( b, "key" ), optString( b, "name" ),
                 optString( b, "description" ) );
-            c.created( projectWithRole( p, c.svc.roleIn( c.actor, p.key() ).wire() ) );
+            c.created( projectWithRole( p, c.svc.roleIn( c.actor, p.key() ).wire(),
+                productKeys( c ) ) );
         } );
         route( r, "GET", "projects/{}", c -> c.json( projectJson( c, c.pathParam( 0 ) ) ) );
         route( r, "PATCH", "projects/{}", this::update );
@@ -140,6 +141,10 @@ public class WorkProjectResource extends WorkResourceBase {
         final String description = b.has( "description" ) ? optString( b, "description" ) : current.description();
         final String autonomy = optString( b, "defaultAutonomy" );
         c.svc.updateProject( c.actor, key, name, description, autonomy == null ? null : Autonomy.fromWire( autonomy ) );
+        if ( b.has( "defaultProductKey" ) ) {
+            final String productKey = optString( b, "defaultProductKey" );
+            c.svc.features().setDefaultProduct( c.actor, key, productKey == null ? "" : productKey );
+        }
         c.json( projectJson( c, key ) );
     }
 

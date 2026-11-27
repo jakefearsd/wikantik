@@ -68,6 +68,55 @@ class WorkProjectResourceTest {
         return WorkHttp.call( servlet, method, "/api/work/projects", path, q, body );
     }
 
+    private static com.wikantik.work.Project withDefault( final String key, final Long productId ) {
+        final com.wikantik.work.Project p = WorkHttp.project( key );
+        return new com.wikantik.work.Project( p.id(), p.key(), p.name(), p.description(), p.defaultAutonomy(),
+            p.createdAt(), null, productId );
+    }
+
+    private void productsAre() throws Exception {
+        Mockito.when( svc.listProducts( ALICE ) ).thenReturn( List.of( new com.wikantik.work.Product( 9, "web", "Web",
+            null, null, null, null, null, null ) ) );
+    }
+
+    @Test
+    void projectJsonCarriesDefaultProductKeyNeverItsId() throws Exception {
+        productsAre();
+        Mockito.when( svc.project( any(), anyString() ) ).thenReturn( withDefault( "PLAT", 9L ) );
+        final JsonObject p = call( "GET", "/PLAT", Map.of(), null ).json().getAsJsonObject();
+        assertEquals( "web", p.get( "defaultProductKey" ).getAsString() );
+        assertFalse( p.has( "defaultProductId" ) );
+    }
+
+    @Test
+    void projectListCarriesDefaultProductKeyToo() throws Exception {
+        productsAre();
+        Mockito.when( svc.listProjectsWithRoles( ALICE ) ).thenReturn( List.of(
+            new WorkService.ProjectRole( withDefault( "PLAT", 9L ), WorkRole.MEMBER ),
+            new WorkService.ProjectRole( withDefault( "OPS", null ), WorkRole.MEMBER ) ) );
+        final var arr = call( "GET", null, Map.of(), null ).json().getAsJsonArray();
+        assertEquals( "web", arr.get( 0 ).getAsJsonObject().get( "defaultProductKey" ).getAsString() );
+        assertFalse( arr.get( 0 ).getAsJsonObject().has( "defaultProductId" ) );
+        assertTrue( arr.get( 1 ).getAsJsonObject().get( "defaultProductKey" ).isJsonNull() );
+    }
+
+    @Test
+    void patchDefaultProductKeySetsAndBlankClears() throws Exception {
+        productsAre();
+        assertEquals( 200, call( "PATCH", "/PLAT", Map.of(), "{\"defaultProductKey\":\"web\"}" ).status() );
+        Mockito.verify( svc.features() ).setDefaultProduct( ALICE, "PLAT", "web" );
+        assertEquals( 200, call( "PATCH", "/PLAT", Map.of(), "{\"defaultProductKey\":\"\"}" ).status() );
+        Mockito.verify( svc.features() ).setDefaultProduct( ALICE, "PLAT", "" );
+        assertEquals( 200, call( "PATCH", "/PLAT", Map.of(), "{\"defaultProductKey\":null}" ).status() );
+        Mockito.verify( svc.features(), Mockito.times( 2 ) ).setDefaultProduct( ALICE, "PLAT", "" );
+    }
+
+    @Test
+    void patchWithoutDefaultProductKeyDoesNotTouchIt() throws Exception {
+        assertEquals( 200, call( "PATCH", "/PLAT", Map.of(), "{\"name\":\"New\"}" ).status() );
+        Mockito.verify( svc.features(), Mockito.never() ).setDefaultProduct( any(), anyString(), anyString() );
+    }
+
     @Test
     void listsVisibleProjectsWithRole() throws Exception {
         Mockito.when( svc.listProjectsWithRoles( ALICE ) ).thenReturn( List.of(

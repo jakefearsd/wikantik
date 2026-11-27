@@ -6,6 +6,23 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+Defects found by a mutation-testing pass (PIT, new opt-in `-Pmutation` profile), each fixed with a test that failed first.
+
+- Security: the connector egress guard (SSRF) now also blocks 0.0.0.0/8, 100.64.0.0/10 (carrier-grade NAT, some cloud metadata) and IPv4 targets carried in IPv6 (IPv4-compatible, NAT64, 6to4).
+- Security: the remember-me cookie lookup no longer accepts a file in a sibling directory that shares the cookie directory's name prefix.
+- Renaming a page with referrer rewriting kept a link's anchor and attachment path twice (`New#frag/file.png#frag`) and left `Old#a/b` links unrenamed.
+- The file page providers validated custom page properties after writing: a refused save could still replace the text, and in the versioning provider the next save then overwrote the real previous version.
+- `update_page` with a blank `canonical_id` no longer replaces the page's existing id.
+- The verification confidence mix (admin overview, `/admin/verification`) and the `/admin/verification` page list counted only the first 100 pages.
+- A save that changed no text crashed the spam rate limiter for non-admin users.
+- The `/api/changes` feed refused malformed `since` values (it read a valid prefix and resumed from the wrong time); admin lock expiry dates are parsed strictly.
+- Several REST endpoints answered 500 instead of 4xx: bad `updated_since`, negative or overflowing limits and offsets, the Drive authorize path with no connector id, negative connector run limits.
+- SCIM: explicit JSON nulls no longer cause a 500, filter operators and attribute names are case-insensitive (RFC 7644), PATCH `remove` clears `emails`/`externalId` or answers `mutability`/`noTarget`, `PUT /Groups/{unknown}` answers 404, PATCH `active` without a value answers 400.
+- The first `X-Forwarded-For` hop is used as the client address (a multi-hop header gave a malformed value).
+- `Jdbc.queryOne` treats a row mapped to null as no value; the reader refresh time no longer throws for a site with no rollups; a cleared connector cursor loads as none.
+- Event listeners with equal hash codes are both listed; attachment names made only of separators are refused as empty.
+- Test suite: database tests share a pooled connection reset with `DISCARD ALL` (the work module's tests run about 4x faster), and many tests now assert exact values.
+
 ## [2.8.9] - 2026-11-26
 
 - Every MCP tool call on the knowledge, admin and work servers writes one `mcp_tool_called` ECS event (tool, client, salted session hash, outcome, duration, response size; never arguments) for jakemon (SA-21).

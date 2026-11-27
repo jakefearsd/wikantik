@@ -13,6 +13,11 @@ describe('work api client', () => {
     expect(collabRequest).toHaveBeenCalledWith('/api/work/log?types=claimed%2Creleased&project=PLAT&actorKind=agent&agent=7&before=2026-11-16T10%3A00%3A00Z&beforeId=9&limit=50');
   });
 
+  it('asks for group suggestions with the query encoded', async () => {
+    await work.suggestGroups('PLAT', 'eng & co');
+    expect(collabRequest).toHaveBeenLastCalledWith('/api/work/projects/PLAT/group-suggestions?q=eng%20%26%20co');
+  });
+
   it('the nine sprint calls hit the documented routes', async () => {
     await work.listSprints('PLAT');
     expect(collabRequest).toHaveBeenLastCalledWith('/api/work/projects/PLAT/sprints');

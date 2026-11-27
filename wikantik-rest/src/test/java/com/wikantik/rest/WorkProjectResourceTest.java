@@ -290,6 +290,16 @@ class WorkProjectResourceTest {
     }
 
     @Test
+    void groupSuggestionsRouteReturnsNamesOnly() throws Exception {
+        final com.wikantik.work.WorkFeatures features = Mockito.mock( com.wikantik.work.WorkFeatures.class );
+        Mockito.when( svc.features() ).thenReturn( features );
+        Mockito.when( features.groupSuggestions( ALICE, "PLAT", "eng" ) ).thenReturn( List.of( "Engineering" ) );
+        final WorkHttp.Result r = call( "GET", "/PLAT/group-suggestions", Map.of( "q", "eng" ), null );
+        assertEquals( 200, r.status() );
+        assertEquals( "{\"groups\":[\"Engineering\"]}", r.json().toString() );
+    }
+
+    @Test
     void labelsRouteListsCounts() throws Exception {
         final com.wikantik.work.WorkFeatures features = Mockito.mock( com.wikantik.work.WorkFeatures.class );
         Mockito.when( svc.features() ).thenReturn( features );

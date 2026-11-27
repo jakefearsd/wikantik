@@ -69,6 +69,11 @@ public interface WorkDirectory {
         return Optional.empty();
     }
 
+    /** The names of the wiki's groups, names only (no members); empty when the directory lists none. */
+    default Set< String > groupNames() {
+        return Set.of();
+    }
+
     /** The logins of the members of a group; empty when the group is unknown. */
     default Set< String > groupMembers( final String group ) {
         return Set.of();

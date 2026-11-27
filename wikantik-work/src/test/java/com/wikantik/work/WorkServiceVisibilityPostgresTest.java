@@ -131,7 +131,7 @@ class WorkServiceVisibilityPostgresTest {
     private static final Set< String > READS = Set.of( "listProjects", "project", "members", "roleIn", "listProducts",
         "item", "items", "board", "itemSummaries", "boardSummaries", "revisions", "events", "activity", "waitingOn",
         "listProjectsWithRoles", "listQueues", "listAgents", "agentViews", "agentStandings", "claimable", "myClaims", "assignmentLog", "policyOf", "list", "counts", "views", "view", "deployment",
-        "forProduct", "history", "awaitingMyApproval", "shippedIn", "gate", "labelsOf", "get", "velocity", "childPoints", "report", "watchState", "find", "saved", "content", "download", "mayAttach", "listing", "dora", "outsideReporters" );
+        "forProduct", "history", "awaitingMyApproval", "shippedIn", "gate", "labelsOf", "get", "velocity", "childPoints", "report", "watchState", "find", "saved", "content", "download", "mayAttach", "listing", "dora", "outsideReporters", "groupSuggestions" );
 
     /** A download sink that keeps nothing, for the reflective drivers. */
     private static final WorkAttachmentsService.Download DISCARD = new WorkAttachmentsService.Download() {
@@ -229,6 +229,7 @@ class WorkServiceVisibilityPostgresTest {
         service = new WorkService( store, md -> md, new WorkDirectory() {
             @Override public Set< String > groupsOf( final String login ) { return "gus".equals( login ) ? Set.of( "Customers" ) : Set.of(); }
             @Override public boolean exists( final String login ) { return WorkAgentFixtures.isPerson( login ); }
+            @Override public Set< String > groupNames() { return Set.of( "web-team", "Customers" ); }
             @Override public String displayName( final String login ) { return login; }
         }, Clock.systemUTC() );
     }
@@ -386,6 +387,10 @@ class WorkServiceVisibilityPostgresTest {
                         seen = invoke( m, op.target(), asLead );
                     } catch ( final WorkNotFoundException e ) {
                         continue;  // this fixture combination does not address the project; try the next
+                    } catch ( final WorkDeniedException e ) {
+                        // a management read (group suggestions) is refused to an agent even in its own project; the
+                        // lead proves it against real data
+                        continue;
                     }
                     // a void read (a streamed download) proves itself by not being refused
                     if ( seen == null && m.getReturnType() != void.class || isEmptyResult( seen ) ) {

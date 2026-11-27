@@ -249,6 +249,16 @@ public final class WikiWorkDirectory implements WorkDirectory {
         return WikiWorkGroups.membersOf( AuthSubsystemBridge.fromLegacyEngine( engine ).groups(), group );
     }
 
+    /** The names of every group the wiki holds, from the live group manager's roles. */
+    @Override
+    public Set< String > groupNames() {
+        final Set< String > names = new java.util.TreeSet<>();
+        for ( final Principal role : AuthSubsystemBridge.fromLegacyEngine( engine ).groups().getRoles() ) {
+            names.add( role.getName() );
+        }
+        return names;
+    }
+
     private PublicIdentity identity() {
         return PublicIdentities.forEngine( engine );
     }

@@ -28,6 +28,8 @@ export const listMembers = (key) => request(`${base}/projects/${enc(key)}/member
 export const putMember = (key, member) => request(`${base}/projects/${enc(key)}/members`, json('PUT', member));
 export const removeMember = (key, { principal, principalKind }) =>
   request(`${base}/projects/${enc(key)}/members`, json('DELETE', { principal, principalKind }));
+export const suggestGroups = (key, q) =>
+  request(`${base}/projects/${enc(key)}/group-suggestions?q=${enc(q)}`);
 export const getBoard = (key, filters = {}) => request(`${base}/projects/${enc(key)}/board${query(filters)}`);
 
 // Products

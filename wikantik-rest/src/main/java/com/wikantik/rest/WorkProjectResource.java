@@ -68,6 +68,13 @@ public class WorkProjectResource extends WorkResourceBase {
             WorkChangeJson.counts( c.svc.changes().counts( c.actor, c.pathParam( 0 ) ) ) ) );
         WorkFlowRoutes.registerProject( r );
         route( r, "GET", "projects/{}/labels", c -> c.json( c.svc.features().labelsOf( c.actor, c.pathParam( 0 ) ) ) );
+        route( r, "GET", "projects/{}/group-suggestions", c -> {
+            final JsonObject o = new JsonObject();
+            final com.google.gson.JsonArray groups = new com.google.gson.JsonArray();
+            c.svc.features().groupSuggestions( c.actor, c.pathParam( 0 ), c.query( "q" ) ).forEach( groups::add );
+            o.add( "groups", groups );
+            c.tree( o );
+        } );
         route( r, "GET", "projects/{}/sprints", c -> c.tree( WorkSprintJson.list(
             c.svc.features().sprints().list( c.actor, c.pathParam( 0 ) ) ) ) );
         route( r, "POST", "projects/{}/sprints", c -> {

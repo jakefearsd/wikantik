@@ -23,6 +23,7 @@ import com.wikantik.work.WorkScopes.Scope;
 import java.sql.SQLException;
 import java.time.Clock;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Reads that go beyond the core item calls, reached through {@link WorkService#features()}. Like every project read,
@@ -40,11 +41,13 @@ public final class WorkFeatures {
     private final WorkCodeHostService codeHost;
     private final WorkFlowService flow;
     private final WorkIntakeService intake;
+    private final WorkDirectory directory;
 
     WorkFeatures( final WorkStore store, final WorkScopes scopes, final ItemViews views, final Clock clock,
                   final FeatureDeps deps ) {
         this.store = store;
         this.scopes = scopes;
+        this.directory = deps.directory();
         this.sprints = new WorkSprintsService( store, scopes, views, clock );
         this.notifications = new WorkNotificationsService( store, scopes, deps.people(), clock, deps.listener(),
             deps.ports() );
@@ -100,6 +103,30 @@ public final class WorkFeatures {
             }
         }
         store.setDefaultProduct( s.project().id(), product, actor );
+    }
+
+    /** The most group names a suggestion call returns. */
+    private static final int MAX_GROUP_SUGGESTIONS = 10;
+
+    /**
+     * Group names containing the query (any letter case), those that start with it first, then alphabetical, at most
+     * ten; a blank query suggests nothing. A project lead's call, for filling in a group member.
+     */
+    public List< String > groupSuggestions( final Actor actor, final String projectKey, final String query )
+            throws SQLException {
+        final Scope s = scopes.scope( actor, projectKey );
+        s.require( Action.MANAGE_PROJECT, null );
+        if ( query == null || query.isBlank() ) {
+            return List.of();
+        }
+        final String needle = query.trim().toLowerCase( Locale.ROOT );
+        return directory.groupNames().stream()
+            .filter( name -> name.toLowerCase( Locale.ROOT ).contains( needle ) )
+            .sorted( java.util.Comparator
+                .comparing( ( String name ) -> !name.toLowerCase( Locale.ROOT ).startsWith( needle ) )
+                .thenComparing( String.CASE_INSENSITIVE_ORDER ) )
+            .limit( MAX_GROUP_SUGGESTIONS )
+            .toList();
     }
 
     /** Attachments: files on an item (Part 7). */

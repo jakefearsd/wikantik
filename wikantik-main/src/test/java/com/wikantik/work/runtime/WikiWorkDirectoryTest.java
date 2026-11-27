@@ -62,6 +62,13 @@ class WikiWorkDirectoryTest {
     }
 
     @Test
+    void wikiDirectoryListsGroupNamesFromGroupManagerRoles() throws Exception {
+        assertFalse( directory.groupNames().contains( "DirCrew" ) );
+        setMembers( "janne" );
+        assertTrue( directory.groupNames().contains( "DirCrew" ) );
+    }
+
+    @Test
     void groupsOfFollowsMembershipOnEveryCall() throws Exception {
         assertFalse( directory.groupsOf( "janne" ).contains( "DirCrew" ) );
         setMembers( "janne" );

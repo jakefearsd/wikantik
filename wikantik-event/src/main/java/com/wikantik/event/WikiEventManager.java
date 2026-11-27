@@ -477,7 +477,13 @@ public final class WikiEventManager {
                 return 0;
             }
 
-            return w1.hashCode() - w0.hashCode();
+            // Integer.compare, not subtraction: the difference of two hash codes overflows int and flips the sign.
+            final int byHash = Integer.compare( w1.hashCode(), w0.hashCode() );
+            if( byHash != 0 ) {
+                return byHash;
+            }
+            // Distinct listeners can share a hash code; returning 0 would make the TreeSet drop one of them.
+            return Integer.compare( System.identityHashCode( w1 ), System.identityHashCode( w0 ) );
         }
     }
 

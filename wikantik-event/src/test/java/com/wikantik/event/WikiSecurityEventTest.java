@@ -147,4 +147,29 @@ class WikiSecurityEventTest {
         assertNull( event.getPrincipal() );
         assertEquals( "target", event.getTarget() );
     }
+
+    @Test
+    void anExplicitlyNullAttributeMapIsNormalisedToEmpty() {
+        final WikiSecurityEvent event = new WikiSecurityEvent(
+                TEST_SOURCE, WikiSecurityEvent.ACCESS_DENIED, TEST_PRINCIPAL, "t", null );
+        assertTrue( event.getAttributes().isEmpty() );
+    }
+
+    @Test
+    void attributesAreCopiedSoLaterChangesToTheCallersMapDoNotLeakIn() {
+        final java.util.Map< String, String > mine = new java.util.HashMap<>();
+        mine.put( "reason", "acl-denied" );
+        final WikiSecurityEvent event = new WikiSecurityEvent(
+                TEST_SOURCE, WikiSecurityEvent.ACCESS_DENIED, TEST_PRINCIPAL, "t", mine );
+        mine.put( "reason", "tampered" );
+        mine.put( "extra", "x" );
+        assertEquals( java.util.Map.of( "reason", "acl-denied" ), event.getAttributes() );
+        assertThrows( UnsupportedOperationException.class, () -> event.getAttributes().put( "k", "v" ) );
+    }
+
+    @Test
+    void aNullSourceIsRefused() {
+        assertThrows( IllegalArgumentException.class,
+                () -> new WikiSecurityEvent( null, WikiSecurityEvent.LOGIN_FAILED, TEST_PRINCIPAL, null ) );
+    }
 }

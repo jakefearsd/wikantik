@@ -92,4 +92,11 @@ class WikiPageEventTest {
         assertTrue( str.contains( "PAGE_LOCK" ) || str.contains( "page lock" ),
                 "toString should include event info, got: " + str );
     }
+
+    @Test
+    void actorIsCarriedWhenGivenAndNullOtherwise() {
+        assertEquals( "alice", new WikiPageEvent( SOURCE, WikiPageEvent.POST_SAVE, "P", "alice" ).getActor() );
+        assertNull( new WikiPageEvent( SOURCE, WikiPageEvent.POST_SAVE, "P", null ).getActor() );
+        assertNull( new WikiPageEvent( SOURCE, WikiPageEvent.POST_SAVE, "P" ).getActor() );
+    }
 }

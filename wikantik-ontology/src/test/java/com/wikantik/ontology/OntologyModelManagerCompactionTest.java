@@ -89,8 +89,10 @@ class OntologyModelManagerCompactionTest {
             // Simulate the production churn pattern: the same resource graphs get
             // replaced over and over (nightly full rebuild + per-save incremental
             // sync), each replace freeing the old B+Tree blocks without reclaiming
-            // the disk space they occupied.
-            for ( int cycle = 0; cycle < 40; cycle++ ) {
+            // the disk space they occupied. Each replace is a synced write
+            // transaction; 8 cycles (120 of them) leave dead space compaction
+            // measurably reclaims, where 40 cycles took about 30 s for the same proof.
+            for ( int cycle = 0; cycle < 8; cycle++ ) {
                 for ( int g = 0; g < 15; g++ ) {
                     final String iri = Iris.page( String.valueOf( new java.util.UUID( 0, g ) ) );
                     mgr.replaceNamedGraph( iri,

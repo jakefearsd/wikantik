@@ -73,15 +73,15 @@ public final class ScimUserMapper {
         String fullName = null;
         if ( in.has( "name" ) && in.get( "name" ).isJsonObject() ) {
             final JsonObject n = in.getAsJsonObject( "name" );
-            fullName = n.has( "formatted" ) ? n.get( "formatted" ).getAsString()
-                    : join( str( n, "givenName" ), str( n, "familyName" ) );
+            final String formatted = str( n, "formatted" );
+            fullName = formatted != null ? formatted : join( str( n, "givenName" ), str( n, "familyName" ) );
         }
         String email = null;
         if ( in.has( "emails" ) && in.get( "emails" ).isJsonArray() && in.getAsJsonArray( "emails" ).size() > 0 ) {
             // Prefer primary:true, else the first.
             for ( final var el : in.getAsJsonArray( "emails" ) ) {
                 final JsonObject e = el.getAsJsonObject();
-                if ( e.has( "primary" ) && e.get( "primary" ).getAsBoolean() ) { email = str( e, "value" ); break; }
+                if ( e.has( "primary" ) && !e.get( "primary" ).isJsonNull() && e.get( "primary" ).getAsBoolean() ) { email = str( e, "value" ); break; }
             }
             if ( email == null ) email = str( in.getAsJsonArray( "emails" ).get( 0 ).getAsJsonObject(), "value" );
         }

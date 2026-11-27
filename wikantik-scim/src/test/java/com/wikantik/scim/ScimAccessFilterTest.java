@@ -130,4 +130,91 @@ class ScimAccessFilterTest {
         verify( chain, never() ).doFilter( any(), any() );
         verify( resp ).setStatus( 401 );
     }
+
+    private int statusFor( final ScimAccessFilter f, final String header, final StringWriter body,
+                           final HttpServletResponse resp ) throws Exception {
+        final HttpServletRequest req = mock( HttpServletRequest.class );
+        final FilterChain chain = mock( FilterChain.class );
+        when( resp.getWriter() ).thenReturn( new PrintWriter( body ) );
+        when( req.getHeader( "Authorization" ) ).thenReturn( header );
+        f.doFilter( req, resp, chain );
+        try {
+            verify( chain ).doFilter( req, resp );
+            return 200;
+        } catch ( final AssertionError notPassed ) {
+            // the chain was not invoked: the request was refused
+            org.mockito.ArgumentCaptor<Integer> c = org.mockito.ArgumentCaptor.forClass( Integer.class );
+            verify( resp ).setStatus( c.capture() );
+            return c.getValue();
+        }
+    }
+
+    @Test
+    void refusalIsAScimErrorDocumentWithTheScimMediaType() throws Exception {
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        final StringWriter body = new StringWriter();
+        assertEquals( 401, statusFor( new ScimAccessFilter( "tok" ), "Bearer wrong", body, resp ) );
+        verify( resp ).setContentType( "application/scim+json" );
+        final com.google.gson.JsonObject json = com.google.gson.JsonParser.parseString( body.toString() ).getAsJsonObject();
+        assertEquals( "401", json.get( "status" ).getAsString() );
+        assertTrue( json.getAsJsonArray( "schemas" ).toString().contains( "scim:api:messages:2.0:Error" ) );
+        assertEquals( "invalid or missing bearer token", json.get( "detail" ).getAsString() );
+    }
+
+    @Test
+    void tokenComparisonIsExactNotPrefixOrCaseFolded() throws Exception {
+        final ScimAccessFilter f = new ScimAccessFilter( "Secret" );
+        for ( final String h : new String[]{ "Bearer secret", "Bearer Secre", "Bearer SecretX", "Bearer ", "bearer Secret",
+                                             "Bearer  Secret", "Basic Secret" } ) {
+            assertEquals( 401, statusFor( f, h, new StringWriter(), mock( HttpServletResponse.class ) ), h );
+        }
+        assertEquals( 200, statusFor( f, "Bearer Secret", new StringWriter(), mock( HttpServletResponse.class ) ) );
+    }
+
+    @Test
+    void aBlankConfiguredTokenAdmitsNobodyNotEvenAnEmptyBearer() throws Exception {
+        for ( final String blank : new String[]{ "", "   " } ) {
+            final ScimAccessFilter f = new ScimAccessFilter( blank );
+            assertEquals( 401, statusFor( f, "Bearer " + blank, new StringWriter(), mock( HttpServletResponse.class ) ), "[" + blank + "]" );
+        }
+    }
+
+    @Test
+    void aBlankSystemPropertyFallsThroughToTheFilterConfig() throws Exception {
+        System.setProperty( PROP, "   " );
+        final FilterConfig cfg = mock( FilterConfig.class );
+        when( cfg.getInitParameter( PROP ) ).thenReturn( "from-config" );
+        final ScimAccessFilter f = new ScimAccessFilter();
+        f.init( cfg );
+        assertEquals( 200, statusFor( f, "Bearer from-config", new StringWriter(), mock( HttpServletResponse.class ) ) );
+        assertEquals( 401, statusFor( f, "Bearer    ", new StringWriter(), mock( HttpServletResponse.class ) ) );
+    }
+
+    @Test
+    void aSystemPropertyWinsOverTheFilterConfig() throws Exception {
+        System.setProperty( PROP, "from-property" );
+        final FilterConfig cfg = mock( FilterConfig.class );
+        when( cfg.getInitParameter( PROP ) ).thenReturn( "from-config" );
+        final ScimAccessFilter f = new ScimAccessFilter();
+        f.init( cfg );
+        assertEquals( 200, statusFor( f, "Bearer from-property", new StringWriter(), mock( HttpServletResponse.class ) ) );
+        assertEquals( 401, statusFor( f, "Bearer from-config", new StringWriter(), mock( HttpServletResponse.class ) ) );
+        verify( cfg, never() ).getInitParameter( PROP );
+    }
+
+    @Test
+    void initWithoutAFilterConfigOrPropertyStaysClosedWithoutThrowing() throws Exception {
+        final ScimAccessFilter f = new ScimAccessFilter();
+        f.init( null );
+        assertEquals( 401, statusFor( f, "Bearer anything", new StringWriter(), mock( HttpServletResponse.class ) ) );
+    }
+
+    @Test
+    void initKeepsATokenGivenToTheConstructor() throws Exception {
+        System.setProperty( PROP, "other" );
+        final ScimAccessFilter f = new ScimAccessFilter( "ctor" );
+        f.init( null );
+        assertEquals( 200, statusFor( f, "Bearer ctor", new StringWriter(), mock( HttpServletResponse.class ) ) );
+        assertEquals( 401, statusFor( f, "Bearer other", new StringWriter(), mock( HttpServletResponse.class ) ) );
+    }
 }

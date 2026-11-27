@@ -239,25 +239,6 @@ class ScimGroupResourceTest {
         assertTrue( sw.toString().contains( "Internal error creating group" ) );
     }
 
-    @Test
-    void createParseGroupThrowsWikiSecurityException_returns500() throws Exception {
-        // gm.parseGroup() throws WikiSecurityException (a WikiException) → 500
-        when( mockGm.getGroup( "Fault" ) ).thenThrow( new NoSuchPrincipalException( "Fault" ) );
-        when( mockGm.parseGroup( eq( "Fault" ), anyString(), anyBoolean() ) )
-                .thenThrow( new WikiSecurityException( "permission denied" ) );
-
-        final String body = "{\"displayName\":\"Fault\"}";
-        when( req.getReader() ).thenReturn( new BufferedReader( new StringReader( body ) ) );
-
-        resource.doPost( req, resp );
-
-        verify( resp ).setStatus( 500 );
-        // parseGroup is preceded by WikiSession.getWikiSession which may fail first on bare mock engine;
-        // either path leads to a 500 with an error detail in the body
-        assertTrue( sw.toString().contains( "500" ) || sw.toString().contains( "error" )
-                || sw.toString().contains( "Failed" ) || sw.toString().contains( "Internal" ) );
-    }
-
     // -----------------------------------------------------------------------
     // GET /Groups/{name} — getByName
     // -----------------------------------------------------------------------

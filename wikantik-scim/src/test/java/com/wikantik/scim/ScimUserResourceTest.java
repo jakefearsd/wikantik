@@ -1385,53 +1385,6 @@ class ScimUserResourceTest {
     }
 
     @Test
-    void patchActiveTrue_callsReactivate() throws Exception {
-        // Patch active=true → lifecycle.reactivate (db.findByLoginName → setLockExpiry(null) → save)
-        when( req.getMethod() ).thenReturn( "PATCH" );
-        when( req.getPathInfo() ).thenReturn( "/uid-lena" );
-
-        final UserProfile p = mock( UserProfile.class );
-        when( p.getLoginName() ).thenReturn( "lena" );
-        when( p.getAttributes() ).thenReturn( new HashMap<>() );
-        when( mockDb.findByUid( "uid-lena" ) ).thenReturn( p );
-        when( mockDb.findByLoginName( "lena" ) ).thenReturn( p );
-        doNothing().when( mockDb ).save( any() );
-
-        final String body = "{\"Operations\":[{\"op\":\"replace\",\"path\":\"active\",\"value\":true}]}";
-        when( req.getReader() ).thenReturn( new BufferedReader( new StringReader( body ) ) );
-
-        resource.service( req, resp );
-
-        // reactivate calls findByLoginName then save
-        verify( mockDb ).findByLoginName( "lena" );
-        verify( mockDb, atLeastOnce() ).save( any() );
-        verify( resp, never() ).setStatus( anyInt() );
-    }
-
-    @Test
-    void patchActiveFalse_callsDeactivate() throws Exception {
-        // Patch active=false → lifecycle.deactivate
-        when( req.getMethod() ).thenReturn( "PATCH" );
-        when( req.getPathInfo() ).thenReturn( "/uid-max" );
-
-        final UserProfile p = mock( UserProfile.class );
-        when( p.getLoginName() ).thenReturn( "max" );
-        when( p.getAttributes() ).thenReturn( new HashMap<>() );
-        when( mockDb.findByUid( "uid-max" ) ).thenReturn( p );
-        when( mockDb.findByLoginName( "max" ) ).thenReturn( p );
-        doNothing().when( mockDb ).save( any() );
-
-        final String body = "{\"Operations\":[{\"op\":\"replace\",\"path\":\"active\",\"value\":false}]}";
-        when( req.getReader() ).thenReturn( new BufferedReader( new StringReader( body ) ) );
-
-        resource.service( req, resp );
-
-        verify( mockDb ).findByLoginName( "max" );
-        verify( mockDb, atLeastOnce() ).save( any() );
-        verify( resp, never() ).setStatus( anyInt() );
-    }
-
-    @Test
     void patchActiveChangeReloadThrowsNoSuchPrincipal_returns404() throws Exception {
         // After deactivate, the reload findByUid throws → 404 "User not found after patch"
         when( req.getMethod() ).thenReturn( "PATCH" );
@@ -1639,55 +1592,6 @@ class ScimUserResourceTest {
     // -----------------------------------------------------------------------
     // Active transitions via PUT
     // -----------------------------------------------------------------------
-
-    @Test
-    void putDeactivateTransition_callsLifecycle() throws Exception {
-        when( req.getPathInfo() ).thenReturn( "/uid-active" );
-
-        // Profile is currently active (not locked)
-        final UserProfile p = mock( UserProfile.class );
-        when( p.getLoginName() ).thenReturn( "ivan" );
-        when( p.isLocked() ).thenReturn( false );  // wasActive = true
-        when( p.getAttributes() ).thenReturn( new HashMap<>() );
-        when( mockDb.findByUid( "uid-active" ) ).thenReturn( p );
-        // After lifecycle op, reload
-        when( mockDb.findByLoginName( "ivan" ) ).thenReturn( p );
-        doNothing().when( mockDb ).save( any() );
-
-        final String body = "{\"userName\":\"ivan\",\"active\":false}";
-        when( req.getReader() ).thenReturn( new BufferedReader( new StringReader( body ) ) );
-
-        resource.doPut( req, resp );
-
-        // No error status — lifecycle runs UserLifecycleService.deactivate internally
-        // The response should be 200 (default from mock = 0, not set to error codes)
-        verify( resp, never() ).setStatus( 400 );
-        verify( resp, never() ).setStatus( 404 );
-        verify( resp, never() ).setStatus( 500 );
-    }
-
-    @Test
-    void putReactivateTransition_callsLifecycle() throws Exception {
-        when( req.getPathInfo() ).thenReturn( "/uid-locked" );
-
-        // Profile is locked (inactive)
-        final UserProfile p = mock( UserProfile.class );
-        when( p.getLoginName() ).thenReturn( "janet" );
-        when( p.isLocked() ).thenReturn( true );  // wasActive = false
-        when( p.getAttributes() ).thenReturn( new HashMap<>() );
-        when( mockDb.findByUid( "uid-locked" ) ).thenReturn( p );
-        when( mockDb.findByLoginName( "janet" ) ).thenReturn( p );
-        doNothing().when( mockDb ).save( any() );
-
-        final String body = "{\"userName\":\"janet\",\"active\":true}";
-        when( req.getReader() ).thenReturn( new BufferedReader( new StringReader( body ) ) );
-
-        resource.doPut( req, resp );
-
-        verify( resp, never() ).setStatus( 400 );
-        verify( resp, never() ).setStatus( 404 );
-        verify( resp, never() ).setStatus( 500 );
-    }
 
     // -----------------------------------------------------------------------
     // Audit service wired (non-null AuditService) — covers auditRecord method

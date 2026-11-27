@@ -35,14 +35,37 @@ public final class ScimPatchApplier {
     public static final class UnsupportedPatchException extends RuntimeException {
         private static final long serialVersionUID = 1L;
 
-        public UnsupportedPatchException( final String m ) { super( m ); }
+        private final String scimType;
+
+        public UnsupportedPatchException( final String m ) { this( "invalidPath", m ); }
+
+        public UnsupportedPatchException( final String scimType, final String m ) {
+            super( m );
+            this.scimType = scimType;
+        }
+
+        /** The RFC 7644 section 3.12 {@code scimType} to answer with. */
+        public String scimType() { return scimType; }
     }
 
     /** What the patch asks for. {@code activeChange} is non-null when the patch
      *  toggles active; {@code attributes} holds other simple replace/add values. */
     public record Result( Boolean activeChange, JsonObject attributes ) {}
 
+    /** Attributes a PATCH {@code remove} may clear. */
+    private static final java.util.Set<String> REMOVABLE = java.util.Set.of( "emails", "externalId" );
+    /** Attributes that exist but are required or read-only, so cannot be removed. */
+    private static final java.util.Set<String> PROTECTED = java.util.Set.of(
+            "active", "userName", "displayName", "name", "name.formatted", "id", "meta", "schemas" );
+
     private ScimPatchApplier() {}
+
+    private static boolean activeValue( final JsonElement value ) {
+        if ( value == null || value.isJsonNull() ) {
+            throw new UnsupportedPatchException( "invalidValue", "'active' requires a value" );
+        }
+        return value.getAsBoolean();
+    }
 
     public static Result apply( final JsonObject patchOp ) {
         Boolean activeChange = null;
@@ -61,22 +84,28 @@ public final class ScimPatchApplier {
             switch ( operation ) {
                 case "replace", "add" -> {
                     if ( "active".equals( path ) ) {
-                        activeChange = op.get( "value" ).getAsBoolean();
+                        activeChange = activeValue( op.get( "value" ) );
                     } else if ( path == null && op.has( "value" ) && op.get( "value" ).isJsonObject() ) {
                         // No path: the value object carries the attributes (Entra style).
                         final JsonObject v = op.getAsJsonObject( "value" );
-                        if ( v.has( "active" ) ) activeChange = v.get( "active" ).getAsBoolean();
+                        if ( v.has( "active" ) ) activeChange = activeValue( v.get( "active" ) );
                         v.entrySet().forEach( e -> { if ( !"active".equals( e.getKey() ) ) attrs.add( e.getKey(), e.getValue() ); } );
                     } else if ( path != null ) {
                         attrs.add( path, op.get( "value" ) );
                     }
                 }
                 case "remove" -> {
-                    if ( "active".equals( path ) ) {
-                        throw new UnsupportedPatchException( "Cannot remove 'active'" );
+                    // Removing a simple attribute → represent as JSON null. Only attributes that may be
+                    // empty can be removed; the rest are required or read-only (RFC 7644 section 3.5.2.3).
+                    if ( path != null ) {
+                        if ( REMOVABLE.contains( path ) ) {
+                            attrs.add( path, com.google.gson.JsonNull.INSTANCE );
+                        } else if ( PROTECTED.contains( path ) ) {
+                            throw new UnsupportedPatchException( "mutability", "Cannot remove '" + path + "'" );
+                        } else {
+                            throw new UnsupportedPatchException( "noTarget", "No such attribute to remove: " + path );
+                        }
                     }
-                    // Removing a simple attribute → represent as JSON null.
-                    if ( path != null ) attrs.add( path, com.google.gson.JsonNull.INSTANCE );
                 }
                 default -> throw new UnsupportedPatchException( "Unsupported op: " + operation );
             }

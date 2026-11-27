@@ -374,7 +374,7 @@ public class ScimUserResource extends AbstractScimServlet {
             sendScim( resp, ScimUserMapper.toScim( p, usersBaseUrl( req ) ) );
 
         } catch ( final ScimPatchApplier.UnsupportedPatchException e ) {
-            sendError( resp, 400, "invalidPath", e.getMessage() );
+            sendError( resp, 400, e.scimType(), e.getMessage() );
         } catch ( final NoSuchPrincipalException e ) {
             sendError( resp, 404, null, "User not found after patch: " + id );
         } catch ( final ProfileConflictException e ) {

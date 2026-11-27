@@ -262,6 +262,14 @@ public class ScimGroupResource extends AbstractScimServlet {
         final UserDatabase db = getUserDatabase();
         if ( db == null ) { sendError( resp, 503, null, "user database unavailable" ); return; }
 
+        // RFC 7644 section 3.5.1: PUT replaces an existing resource; it never creates one.
+        try {
+            gm.getGroup( name );
+        } catch ( final NoSuchPrincipalException e ) {
+            sendError( resp, 404, null, "Group not found: " + name );
+            return;
+        }
+
         final JsonObject body = parseBody( req, resp );
         if ( body == null ) return;
 

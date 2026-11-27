@@ -36,7 +36,8 @@ public final class ScimFilterParser {
     }
 
     private static final Set<String> SUPPORTED = Set.of( "userName", "externalId", "displayName" );
-    private static final Pattern EQ = Pattern.compile( "^\\s*(\\w+)\\s+eq\\s+\"([^\"]*)\"\\s*$" );
+    /** RFC 7644 section 3.4.2.2: operators and attribute names are case-insensitive. */
+    private static final Pattern EQ = Pattern.compile( "^\\s*(\\w+)\\s+eq\\s+\"([^\"]*)\"\\s*$", Pattern.CASE_INSENSITIVE );
 
     private ScimFilterParser() {}
 
@@ -46,9 +47,10 @@ public final class ScimFilterParser {
         if ( !m.matches() ) {
             throw new UnsupportedFilterException( "Only '<attr> eq \"value\"' is supported: " + filter );
         }
-        final String attr = m.group( 1 );
-        if ( !SUPPORTED.contains( attr ) ) {
-            throw new UnsupportedFilterException( "Filtering on '" + attr + "' is not supported" );
+        final String requested = m.group( 1 );
+        final String attr = SUPPORTED.stream().filter( requested::equalsIgnoreCase ).findFirst().orElse( null );
+        if ( attr == null ) {
+            throw new UnsupportedFilterException( "Filtering on '" + requested + "' is not supported" );
         }
         return Optional.of( new Eq( attr, m.group( 2 ) ) );
     }

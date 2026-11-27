@@ -164,4 +164,36 @@ class ScimDiscoveryResourceTest {
         final JsonObject error = JsonParser.parseString( body.toString() ).getAsJsonObject();
         assertEquals( "404", error.get( "status" ).getAsString() );
     }
+
+    private static HttpServletResponse respFor( final String servletPath, final StringWriter body ) throws Exception {
+        final ScimDiscoveryResource servlet = new ScimDiscoveryResource();
+        final HttpServletRequest req = mock( HttpServletRequest.class );
+        final HttpServletResponse resp = mock( HttpServletResponse.class );
+        when( req.getServletPath() ).thenReturn( servletPath );
+        when( resp.getWriter() ).thenReturn( new PrintWriter( body, true ) );
+        servlet.doGet( req, resp );
+        return resp;
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource( strings = {
+            "/scim/v2/ServiceProviderConfig", "/scim/v2/Schemas", "/scim/v2/ResourceTypes" } )
+    void everyDiscoveryDocumentIsServedAsScimJson( final String servletPath ) throws Exception {
+        final StringWriter body = new StringWriter();
+        final HttpServletResponse resp = respFor( servletPath, body );
+        verify( resp ).setContentType( "application/scim+json" );
+        org.mockito.Mockito.verify( resp, org.mockito.Mockito.never() ).setStatus( org.mockito.ArgumentMatchers.anyInt() );
+        assertFalse( body.toString().isBlank() );
+    }
+
+    @Test
+    void anUnknownDiscoveryPathIsAScim404Document() throws Exception {
+        final StringWriter body = new StringWriter();
+        final HttpServletResponse resp = respFor( "/scim/v2/Bogus", body );
+        verify( resp ).setStatus( 404 );
+        verify( resp ).setContentType( "application/scim+json" );
+        final JsonObject o = JsonParser.parseString( body.toString() ).getAsJsonObject();
+        assertEquals( "404", o.get( "status" ).getAsString() );
+        assertTrue( o.getAsJsonArray( "schemas" ).toString().contains( "scim:api:messages:2.0:Error" ) );
+    }
 }

@@ -72,6 +72,14 @@ final class ScimUserFields {
         dirty |= assign( firstEmail( attrs ), p::setEmail );
         dirty |= assign( stringOrNull( attrs, "externalId" ),
                 v -> p.getAttributes().put( SSOAutoProvisionService.ATTR_SSO_SUBJECT, v ) );
+        // A PATCH remove arrives as JSON null (ScimPatchApplier only lets removable attributes through).
+        if ( isRemoved( attrs, "emails" ) && p.getEmail() != null ) {
+            p.setEmail( null );
+            dirty = true;
+        }
+        if ( isRemoved( attrs, "externalId" ) && p.getAttributes().remove( SSOAutoProvisionService.ATTR_SSO_SUBJECT ) != null ) {
+            dirty = true;
+        }
         return dirty;
     }
 
@@ -172,6 +180,10 @@ final class ScimUserFields {
         if ( value == null ) return false;
         setter.accept( value );
         return true;
+    }
+
+    private static boolean isRemoved( final JsonObject attrs, final String key ) {
+        return attrs.has( key ) && attrs.get( key ).isJsonNull();
     }
 
     /** {@code o.key} as a string, or null when absent, JSON-null, or {@code o} itself is null. */

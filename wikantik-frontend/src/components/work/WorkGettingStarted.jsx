@@ -5,7 +5,6 @@ import { useToast } from '../../hooks/useToast';
 import { createStarterQueues } from './starterQueues';
 
 const DISMISS_KEY = 'wikantik.work.gettingStarted.dismissed';
-const NON_ADMIN_TEXT = 'You are not in any project yet. A wiki admin creates projects, and a project lead adds people.';
 
 function readDismissed() {
   try { return window.localStorage.getItem(DISMISS_KEY) != null; } catch (err) {
@@ -30,7 +29,7 @@ function Step({ id, done, label, children }) {
 }
 
 /**
- * The first-run card on /work. `projects` is the viewer's project list from getMe; `onCreateProject` opens the new-project
+ * The first-run card on /work, for wiki admins only. `projects` is the viewer's project list from getMe; `onCreateProject` opens the new-project
  * form in place. Any failed load leaves the card out: it must never block the page.
  */
 export default function WorkGettingStarted({ isAdmin, projects, onCreateProject }) {
@@ -79,18 +78,8 @@ export default function WorkGettingStarted({ isAdmin, projects, onCreateProject 
 
   const dismissButton = <button type="button" className="btn btn-ghost btn-sm" onClick={dismiss}>Dismiss</button>;
 
-  if (!isAdmin) {
-    if (hasProject) return null;
-    return (
-      <section className="work-getting-started" aria-labelledby="work-getting-started-title">
-        <h2 id="work-getting-started-title" className="work-subheading">Getting started</h2>
-        <p>{NON_ADMIN_TEXT}</p>
-        {dismissButton}
-      </section>
-    );
-  }
-
-  if (!data) return null;
+  // A non-admin gets no card: WorkHome's empty project list already says who to ask.
+  if (!isAdmin || !data) return null;
   const product = data.products.some((p) => !p.archived);
   const queue = data.queues.some((q) => !q.retiredAt);
   const agent = data.agents.some((a) => !a.retiredAt);

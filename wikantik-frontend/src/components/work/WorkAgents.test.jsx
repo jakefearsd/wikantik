@@ -231,7 +231,7 @@ describe('WorkAgents', () => {
 
   describe('copy feedback is truthful', () => {
     const setClipboard = (value) => Object.defineProperty(navigator, 'clipboard', { configurable: true, value });
-    const FAIL = /Copying failed/;
+    const FAIL = /Copying the token failed/;
     async function copyClick() {
       const panel = await showPanelViaRegister();
       fireEvent.click(within(panel).getByRole('button', { name: 'Copy' }));
@@ -241,25 +241,25 @@ describe('WorkAgents', () => {
       setClipboard(undefined);
       const panel = await copyClick();
       expect(await within(panel).findByText(FAIL)).toBeInTheDocument();
-      expect(panel).not.toHaveTextContent('Copied.');
+      expect(panel).not.toHaveTextContent(/copied\./i);
       expect(within(panel).getByText(SECRET)).toBeInTheDocument();
     });
     it('writeText rejects: failure text', async () => {
       setClipboard({ writeText: vi.fn().mockRejectedValue(new Error('denied')) });
       const panel = await copyClick();
       expect(await within(panel).findByText(FAIL)).toBeInTheDocument();
-      expect(panel).not.toHaveTextContent('Copied.');
+      expect(panel).not.toHaveTextContent(/copied\./i);
     });
     it('writeText throws synchronously: failure text', async () => {
       setClipboard({ writeText: vi.fn(() => { throw new Error('sync'); }) });
       const panel = await copyClick();
       expect(await within(panel).findByText(FAIL)).toBeInTheDocument();
-      expect(panel).not.toHaveTextContent('Copied.');
+      expect(panel).not.toHaveTextContent(/copied\./i);
     });
-    it('writeText resolves: Copied.', async () => {
+    it('writeText resolves: Token copied.', async () => {
       setClipboard({ writeText: vi.fn().mockResolvedValue(undefined) });
       const panel = await copyClick();
-      expect(await within(panel).findByText(/Copied\./)).toBeInTheDocument();
+      expect(await within(panel).findByText(/Token copied\./)).toBeInTheDocument();
     });
   });
 
@@ -628,6 +628,27 @@ describe('WorkAgents', () => {
       expect(alert).toHaveTextContent('Settings');
       expect(alert).not.toHaveTextContent('PLAT');
       expect(screen.getByRole('dialog', { name: /key/i })).toHaveTextContent(SECRET);
+    });
+    it('admits nobody when the server names no agent, but still shows the key', async () => {
+      registerAgent.mockResolvedValue({ agent: {}, token: SECRET });
+      renderPage();
+      await openRegister();
+      expect(screen.getByLabelText(/PLAT/)).toBeChecked();
+      fireEvent.click(screen.getByRole('button', { name: 'Register' }));
+      const panel = await screen.findByRole('dialog', { name: 'API key for agent' });
+      expect(within(panel).getByText(SECRET)).toBeInTheDocument();
+      await waitFor(() => expect(listAgents.mock.calls.length).toBeGreaterThan(1));
+      expect(putMember).not.toHaveBeenCalled();
+    });
+    it('clears the admission warning when the key panel is dismissed', async () => {
+      registerAgent.mockResolvedValue({ agent: BOT, token: SECRET });
+      putMember.mockRejectedValue(new Error('no'));
+      renderPage();
+      await openRegister();
+      fireEvent.click(screen.getByRole('button', { name: 'Register' }));
+      expect(await screen.findByRole('alert')).toHaveTextContent('PLAT');
+      fireEvent.click(within(screen.getByRole('dialog', { name: /key/i })).getByRole('button', { name: 'Done' }));
+      await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
     });
     it('makes no putMember call when nothing is checked', async () => {
       registerAgent.mockResolvedValue({ agent: BOT, token: SECRET });

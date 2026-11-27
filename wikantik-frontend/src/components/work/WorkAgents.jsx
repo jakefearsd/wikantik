@@ -59,6 +59,8 @@ export default function WorkAgents() {
   };
   const dropKey = (id) => {
     keyCount.current = Math.max(0, keyCount.current - 1);
+    // The admission warning belongs with the key panels: once the last is dismissed, it goes too.
+    if (keyCount.current === 0) setAdmitWarning(null);
     setKeys((all) => all.filter((x) => x.id !== id));
   };
   const seq = useRef(0);
@@ -105,9 +107,12 @@ export default function WorkAgents() {
   function registered(made) {
     if (!mounted.current) return;
     setRegistering(false);
-    const name = made.agent?.name || 'agent';
+    const name = made.agent?.name || 'agent'; // the fallback is for the panel only, never a principal
     addKey(name, made.token); // the key is shown first: nothing below may lose it
-    const admitTo = made.admitTo || [];
+    if (!made.agent?.name && (made.admitTo || []).length) {
+      console.warn('WorkAgents: the registration answer named no agent; not admitting it to any project');
+    }
+    const admitTo = made.agent?.name ? made.admitTo || [] : [];
     setAdmitWarning(null);
     Promise.allSettled(admitTo.map((key) => putMember(key, { principal: name, principalKind: 'agent', role: 'member' })))
       .then((results) => {

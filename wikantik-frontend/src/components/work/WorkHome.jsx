@@ -217,7 +217,7 @@ export default function WorkHome() {
       {reporterOnly && reported.length === 0 && <EmptyState message="You have not filed any requests yet." />}
       {!reporterOnly && <h2 className="work-subheading">Projects</h2>}
       {!reporterOnly && (active.length === 0
-        ? <EmptyState message={archived.length ? 'You have no active projects.' : 'You are not a member of any project yet.'} />
+        ? <EmptyState message={archived.length ? 'You have no active projects.' : 'You are not a member of any project yet. A wiki admin creates projects, and a project lead adds people.'} />
         : projectList(active))}
       {archived.length > 0 && (
         <section aria-label="Archived projects">

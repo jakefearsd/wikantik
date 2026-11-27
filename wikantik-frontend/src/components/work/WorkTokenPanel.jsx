@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
  * logged, stored or put in a message, and the caller drops it from its state when `onDone` fires.
  */
 export default function WorkTokenPanel({ agentName, token, endpoint, onDone, autoFocus = true }) {
-  const [copied, setCopied] = useState(null); // null | true | false
+  const [copied, setCopied] = useState(null); // null | { what: 'token' | 'URL' | 'command', ok: boolean }
   const panel = useRef(null);
   // Only the first panel takes focus: a later one must not pull it from a panel the admin is already using.
   useEffect(() => { if (autoFocus) panel.current?.focus(); }, [autoFocus]);
@@ -14,8 +14,8 @@ export default function WorkTokenPanel({ agentName, token, endpoint, onDone, aut
     ? `claude mcp add --transport http wikantik-work ${endpoint} --header "Authorization: Bearer ${token}"`
     : null;
 
-  function copy(text) {
-    // The only place the token leaves the page, and only on an explicit click. Only a resolved writeText is "Copied."
+  function copy(text, what) {
+    // The only place the token leaves the page, and only on an explicit click. Only a resolved writeText is "copied".
     let pending;
     try {
       pending = navigator.clipboard?.writeText ? navigator.clipboard.writeText(text) : null;
@@ -23,10 +23,10 @@ export default function WorkTokenPanel({ agentName, token, endpoint, onDone, aut
       console.warn('WorkTokenPanel: clipboard write threw', err?.name);
       pending = null;
     }
-    if (!pending || typeof pending.then !== 'function') { setCopied(false); return; }
-    pending.then(() => setCopied(true)).catch((err) => {
+    if (!pending || typeof pending.then !== 'function') { setCopied({ what, ok: false }); return; }
+    pending.then(() => setCopied({ what, ok: true })).catch((err) => {
       console.warn('WorkTokenPanel: clipboard write failed', err?.name);
-      setCopied(false);
+      setCopied({ what, ok: false });
     });
   }
 
@@ -36,8 +36,8 @@ export default function WorkTokenPanel({ agentName, token, endpoint, onDone, aut
       <h2 className="work-subheading">API key for {agentName}</h2>
       <p role="status" aria-live="polite">
         Copy this key now. It cannot be shown again; if you lose it, rotate the key to get a new one.
-        {copied === true && ' Copied.'}
-        {copied === false && ' Copying failed \u2014 select the key and copy it by hand.'}
+        {copied?.ok === true && ` ${copied.what.charAt(0).toUpperCase()}${copied.what.slice(1)} copied.`}
+        {copied?.ok === false && ` Copying the ${copied.what} failed \u2014 select it and copy it by hand.`}
       </p>
       <code className="work-token-value">{token}</code>
       {endpoint && (
@@ -49,9 +49,9 @@ export default function WorkTokenPanel({ agentName, token, endpoint, onDone, aut
         </>
       )}
       <div className="work-actions">
-        <button type="button" className="btn btn-sm" onClick={() => copy(token)}>Copy</button>
-        {endpoint && <button type="button" className="btn btn-sm" onClick={() => copy(endpoint)}>Copy URL</button>}
-        {endpoint && <button type="button" className="btn btn-sm" onClick={() => copy(command)}>Copy command</button>}
+        <button type="button" className="btn btn-sm" onClick={() => copy(token, 'token')}>Copy</button>
+        {endpoint && <button type="button" className="btn btn-sm" onClick={() => copy(endpoint, 'URL')}>Copy URL</button>}
+        {endpoint && <button type="button" className="btn btn-sm" onClick={() => copy(command, 'command')}>Copy command</button>}
         <button type="button" className="btn btn-sm btn-primary" onClick={onDone}>Done</button>
       </div>
     </section>

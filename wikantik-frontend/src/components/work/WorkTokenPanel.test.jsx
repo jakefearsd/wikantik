@@ -34,13 +34,23 @@ describe('WorkTokenPanel', () => {
     expect(writeText).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
     await waitFor(() => expect(writeText).toHaveBeenLastCalledWith(TOKEN));
+    expect(await screen.findByText(/Token copied\./)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Copy URL' }));
     await waitFor(() => expect(writeText).toHaveBeenLastCalledWith(ENDPOINT));
+    expect(await screen.findByText(/URL copied\./)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Copy command' }));
     await waitFor(() => expect(writeText).toHaveBeenLastCalledWith(COMMAND));
-    expect(await screen.findByText(/Copied/)).toBeInTheDocument();
+    expect(await screen.findByText(/Command copied\./)).toBeInTheDocument();
     for (const s of spies) {
       for (const call of s.mock.calls) expect(JSON.stringify(call)).not.toContain(TOKEN);
     }
+  });
+
+  it('names what failed to copy', async () => {
+    writeText.mockRejectedValue(new Error('denied'));
+    render(<WorkTokenPanel agentName="bot" token={TOKEN} endpoint={ENDPOINT} onDone={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Copy URL' }));
+    expect(await screen.findByText(/Copying the URL failed/)).toBeInTheDocument();
+    expect(screen.queryByText(/copied\./i)).toBeNull();
   });
 });

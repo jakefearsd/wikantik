@@ -46,12 +46,29 @@ const SAVED = [
   { id: 5, name: 'Team ready', project: 'PLAT', shared: true, mine: false, mayDelete: false, ownerName: 'Jane Doe', filter: { projects: 'PLAT', status: 'ready' } },
 ];
 
+const EMPTY = 'You are not a member of any project yet. A wiki admin creates projects, and a project lead adds people.';
+
 describe('WorkHome', () => {
   it('shows the getting-started card to an admin with nothing set up, and opens the project form from it', async () => {
     renderHome({ admin: true, me: { projects: [] } });
     expect(await screen.findByText('Getting started')).toBeInTheDocument();
     fireEvent.click(screen.getAllByRole('button', { name: 'Create a project' })[0]);
     expect(await screen.findByLabelText('Key')).toBeInTheDocument();
+  });
+
+  it('tells a non-admin with no project who to ask in the empty state, with no getting-started card', async () => {
+    renderHome({ me: { projects: [], waitingOn: [] } });
+    expect(await screen.findByText(EMPTY)).toBeInTheDocument();
+    expect(screen.queryByText('Getting started')).toBeNull();
+    expect(listProducts).not.toHaveBeenCalled();
+  });
+
+  it('shows no getting-started card above a reporter\'s requests', async () => {
+    listReported.mockResolvedValue([{ key: 'DOCS-3', projectKey: 'DOCS', projectName: 'Documentation', title: 'Typo', status: 'draft' }]);
+    renderHome({ me: { projects: [], waitingOn: [], reportable: [{ key: 'DOCS', name: 'Documentation', role: 'reporter' }] } });
+    expect(await screen.findByRole('heading', { name: 'My requests' })).toBeInTheDocument();
+    expect(screen.queryByText('Getting started')).toBeNull();
+    expect(screen.queryByText(/not in any project yet/)).toBeNull();
   });
 
   it('lists items filed into other projects', async () => {
@@ -70,7 +87,7 @@ describe('WorkHome', () => {
     const file = await screen.findByRole('link', { name: 'File a request' });
     expect(file).toHaveAttribute('href', '/work/submit');
     expect(await screen.findByRole('heading', { name: 'My requests' })).toBeInTheDocument();
-    expect(screen.queryByText('You are not a member of any project yet.')).toBeNull();
+    expect(screen.queryByText(/not a member of any project/)).toBeNull();
     expect(screen.queryByRole('heading', { name: 'Projects' })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Agents & queues' })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Deployments' })).toBeNull();
@@ -109,7 +126,7 @@ describe('WorkHome', () => {
 
   it('hasNoLogLinkWhenTheViewerSeesNoProject', async () => {
     renderHome({ me: { projects: [], waitingOn: [] } });
-    await screen.findByText('You are not a member of any project yet.');
+    await screen.findByText(EMPTY);
     expect(screen.queryByRole('link', { name: 'Assignments and claims' })).not.toBeInTheDocument();
   });
 
@@ -345,7 +362,7 @@ describe('WorkHome', () => {
 
   it('copes with a reply that lists nothing at all', async () => {
     renderHome({ me: {} });
-    expect(await screen.findByText('You are not a member of any project yet.')).toBeInTheDocument();
+    expect(await screen.findByText(EMPTY)).toBeInTheDocument();
   });
 
   it('says there are no active projects when only archived ones remain', async () => {
@@ -473,7 +490,7 @@ describe('WorkHome', () => {
 
     it('no find section without a project', async () => {
       renderHome({ me: { projects: [], waitingOn: [] } });
-      await screen.findByText('You are not a member of any project yet.');
+      await screen.findByText(EMPTY);
       expect(screen.queryByRole('region', { name: 'Find work' })).not.toBeInTheDocument();
       expect(listFilters).not.toHaveBeenCalled();
     });

@@ -213,7 +213,7 @@ describe('WorkItemForm', () => {
       expect(draft).toMatchObject({ dueOn: '2026-12-01', kind: 'docs', priority: 1, body: 'Some **text**' });
     });
 
-    it('leaves out the due date, parent, product and assignee when none were chosen', async () => {
+    it('leaves out the due date, parent and assignee when none were chosen', async () => {
       setup();
       await waitFor(() => expect(listItems).toHaveBeenCalled());
       const draft = await submitWith();
@@ -393,9 +393,70 @@ describe('WorkItemForm product default and More options', () => {
     expect((await submitted()).productKey).toBe('web');
   });
 
-  it('does not pre-select an archived default or one of several products', async () => {
+  it('does not pre-select an archived default or one of several products, and lets the server decide', async () => {
     setup({ project: { ...PROJECT, defaultProductKey: 'old' }, products: [...TWO, { key: 'old', name: 'Old', archived: true }] });
+    expect(await submitted()).not.toHaveProperty('productKey');
+  });
+
+  it('picks up the project default when the products arrive after the form opened', async () => {
+    const project = { ...PROJECT, defaultProductKey: 'web' };
+    const { rerender } = render(<WorkItemForm isOpen project={project} products={[]} onClose={vi.fn()} />);
+    rerender(<WorkItemForm isOpen project={project} products={TWO} onClose={vi.fn()} />);
+    expect((await submitted()).productKey).toBe('web');
+  });
+
+  it('sends no productKey when the products never load, so the server default applies', async () => {
+    setup({ project: { ...PROJECT, defaultProductKey: 'web' }, products: [] });
+    expect(await submitted()).not.toHaveProperty('productKey');
+  });
+
+  it('sends an empty productKey when the user picks No product in the main form', async () => {
+    setup({ products: TWO });
+    fireEvent.change(screen.getByLabelText('Product'), { target: { value: 'web' } });
+    fireEvent.change(screen.getByLabelText('Product'), { target: { value: '' } });
     expect((await submitted()).productKey).toBe('');
+  });
+
+  it('keeps an explicit No product when the late products bring a default', async () => {
+    const project = { ...PROJECT, defaultProductKey: 'web' };
+    const { rerender } = render(<WorkItemForm isOpen project={project} products={[{ key: 'api', name: 'Api' }]} onClose={vi.fn()} />);
+    openMore();
+    fireEvent.change(screen.getByLabelText('Product'), { target: { value: '' } });
+    rerender(<WorkItemForm isOpen project={project} products={TWO} onClose={vi.fn()} />);
+    expect((await submitted()).productKey).toBe('');
+  });
+
+  it('keeps the chosen product across a switch to Epic and back', async () => {
+    setup({ project: { ...PROJECT, defaultProductKey: 'web' }, products: TWO });
+    openMore();
+    fireEvent.change(screen.getByLabelText('Product'), { target: { value: 'api' } });
+    fireEvent.click(screen.getByLabelText('Epic'));
+    fireEvent.click(screen.getByLabelText('Task'));
+    expect((await submitted()).productKey).toBe('api');
+  });
+
+  it('keeps an explicit No product across a switch to Epic and back', async () => {
+    setup({ project: { ...PROJECT, defaultProductKey: 'web' }, products: TWO });
+    openMore();
+    fireEvent.change(screen.getByLabelText('Product'), { target: { value: '' } });
+    fireEvent.click(screen.getByLabelText('Epic'));
+    fireEvent.click(screen.getByLabelText('Story'));
+    expect((await submitted()).productKey).toBe('');
+  });
+
+  it('names the labels and the due date in the summary so nothing hidden submits unseen', () => {
+    setup({ project: { ...PROJECT, defaultProductKey: 'web' }, products: TWO });
+    openMore();
+    const toggle = () => screen.getByRole('button', { name: /More options/ });
+    expect(toggle()).not.toHaveTextContent('label');
+    expect(toggle()).not.toHaveTextContent('Due');
+    fireEvent.change(screen.getByLabelText('Add a label'), { target: { value: 'ui' } });
+    fireEvent.keyDown(screen.getByLabelText('Add a label'), { key: 'Enter' });
+    expect(toggle()).toHaveTextContent('Product: Web · Feature · Software · P3 · 1 label');
+    fireEvent.change(screen.getByLabelText('Add a label'), { target: { value: 'api' } });
+    fireEvent.keyDown(screen.getByLabelText('Add a label'), { key: 'Enter' });
+    fireEvent.change(screen.getByLabelText('Due date'), { target: { value: '2026-12-01' } });
+    expect(toggle()).toHaveTextContent('Product: Web · Feature · Software · P3 · 2 labels · Due 2026-12-01');
   });
 
   it('shows Product outside More options only when none was pre-selected', () => {

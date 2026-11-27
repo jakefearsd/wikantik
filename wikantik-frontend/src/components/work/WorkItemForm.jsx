@@ -28,8 +28,14 @@ function FormBody({ project, products, members, queues, labelSuggestions, onClos
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [parentKey, setParentKey] = useState('');
-  const [initialKey] = useState(() => initialProduct(project, products));
-  const [productKey, setProductKey] = useState(initialKey);
+  // null until the person touches the Product field: until then the product follows the project default (re-derived
+  // when the products arrive late), and an untouched empty one is not sent, so the server applies its own default.
+  const [chosenProduct, setChosenProduct] = useState(null);
+  const [productInMoreAtChoice, setProductInMoreAtChoice] = useState(null);
+  const derivedProduct = initialProduct(project, products);
+  const productKey = chosenProduct ?? derivedProduct;
+  // Product sits under More options only when one was pre-selected; it stays where it was once the person chose.
+  const productInMore = productInMoreAtChoice ?? Boolean(derivedProduct);
   const [showMore, setShowMore] = useState(false);
   const [kind, setKind] = useState('software');
   const [type, setType] = useState('feature');
@@ -64,7 +70,11 @@ function FormBody({ project, products, members, queues, labelSuggestions, onClos
   function chooseLevel(next) {
     setLevel(next);
     setParentKey('');
-    if (next === 'epic') setProductKey(initialKey);
+  }
+
+  function chooseProduct(next) {
+    setProductInMoreAtChoice(productInMore);
+    setChosenProduct(next);
   }
 
   function submit(e) {
@@ -72,7 +82,7 @@ function FormBody({ project, products, members, queues, labelSuggestions, onClos
     if (!title.trim() || saving) return;
     const draft = { project: project.key, level, kind, title: title.trim(), body, priority: Number(priority) };
     if (parentKey && current.parentLevel) draft.parentKey = parentKey;
-    if (level !== 'epic') draft.productKey = productKey;
+    if (level !== 'epic' && (chosenProduct !== null || productKey)) draft.productKey = productKey;
     if (dueOn) draft.dueOn = dueOn;
     if (level !== 'epic') draft.type = type;
     const allLabels = withPending(labels, typedLabel.current);
@@ -87,7 +97,7 @@ function FormBody({ project, products, members, queues, labelSuggestions, onClos
       <label className="work-form-field" htmlFor={`${uid}-product`}>Product</label>
       <Select id={`${uid}-product`} ariaLabel="Product" placeholder="No product" value={productKey}
         options={(products || []).filter((p) => !p.archived).map((p) => ({ value: p.key, label: p.name || p.key }))}
-        onChange={setProductKey} />
+        onChange={chooseProduct} />
     </div>
   );
   const productName = (products || []).find((p) => p.key === productKey);
@@ -96,6 +106,8 @@ function FormBody({ project, products, members, queues, labelSuggestions, onClos
     level !== 'epic' && (TYPE_OPTIONS.find((o) => o.value === type)?.label || type),
     kind.charAt(0).toUpperCase() + kind.slice(1),
     `P${priority}`,
+    labels.length > 0 && `${labels.length} ${labels.length === 1 ? 'label' : 'labels'}`,
+    dueOn && `Due ${dueOn}`,
   ].filter(Boolean).join(' · ');
 
   return (
@@ -125,7 +137,7 @@ function FormBody({ project, products, members, queues, labelSuggestions, onClos
               onChange={setParentKey} />
           </div>
         )}
-        {level !== 'epic' && !initialKey && productField}
+        {level !== 'epic' && !productInMore && productField}
         <div>
           <label className="work-form-field" htmlFor={`${uid}-assignee`}>Assignee</label>
           <AssigneePicker id={`${uid}-assignee`} members={members} queues={queues} value={target}
@@ -139,7 +151,7 @@ function FormBody({ project, products, members, queues, labelSuggestions, onClos
       {showMore && (
         <div className="work-form-more-body">
           <div className="work-form-row">
-            {level !== 'epic' && initialKey && productField}
+            {level !== 'epic' && productInMore && productField}
             {level !== 'epic' && (
               <div>
                 <label className="work-form-field" htmlFor={`${uid}-type`}>Type</label>

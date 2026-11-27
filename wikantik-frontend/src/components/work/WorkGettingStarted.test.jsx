@@ -56,11 +56,13 @@ describe('WorkGettingStarted', () => {
     await waitFor(() => expect(listQueues).toHaveBeenCalledTimes(2));
   });
 
-  it('tells a non-admin with no project who to ask', async () => {
-    renderCard({ isAdmin: false });
-    expect(await screen.findByText('You are not in any project yet. A wiki admin creates projects, and a project lead adds people.')).toBeInTheDocument();
+  it('renders nothing for a non-admin with no project and loads nothing (WorkHome\'s empty state says who to ask)', async () => {
+    const { container } = renderCard({ isAdmin: false });
+    await Promise.resolve();
+    expect(container).toBeEmptyDOMElement();
     expect(listProducts).not.toHaveBeenCalled();
     expect(listQueues).not.toHaveBeenCalled();
+    expect(listAgents).not.toHaveBeenCalled();
   });
 
   it('renders nothing for a non-admin who has a project', async () => {

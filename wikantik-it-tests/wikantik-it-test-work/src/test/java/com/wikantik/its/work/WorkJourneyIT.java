@@ -157,6 +157,8 @@ public class WorkJourneyIT extends WithIntegrationTestSetup {
         open( "/work/" + project );
         $( "button.work-new-item" ).shouldBe( visible, WAIT ).click();
         type( $x( "Title" ), title );
+        // Labels sit under the collapsed "More options" toggle.
+        $$( "button[aria-expanded]" ).findBy( text( "More options" ) ).shouldBe( visible, WAIT ).click();
         type( $( "input[aria-label='Add a label']" ), "fresh" );
         $$( "button" ).findBy( text( "Create item" ) ).click();
         $$( "article.work-card" ).findBy( text( title ) ).shouldBe( visible, WAIT );

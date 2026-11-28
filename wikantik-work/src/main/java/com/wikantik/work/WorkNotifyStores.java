@@ -26,5 +26,5 @@ public record WorkNotifyStores( WorkWatchStore watches, WorkNotificationStore no
                                 WorkWebhookStore webhooks, WorkFindStore finder,
                                 WorkFilterStore filters, WorkAttachmentStore attachments,
                                 WorkCodeHostStore codeHost, WorkFlowStore flow,
-                                WorkIntakeStore intake ) {
+                                WorkIntakeStore intake, WorkProjectDefaultsStore defaults ) {
 }

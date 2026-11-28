@@ -357,22 +357,6 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
     }
 
     @Override
-    public Optional< Product > product( final long id ) throws SQLException {
-        return jdbc.queryOne( "SELECT " + PRODUCT_COLUMNS + " FROM work_product WHERE id = ?",
-            ps -> ps.setLong( 1, id ), PRODUCT_ROW );
-    }
-
-    @Override
-    public void setDefaultProduct( final long projectId, final Product productOrNull, final Actor by )
-            throws SQLException {
-        requireAttributed( by.kind(), by.agentId() );
-        jdbc.inTransaction( conn -> {
-            JdbcProjectDefaults.set( this, conn, projectId, productOrNull, by );
-            return null;
-        } );
-    }
-
-    @Override
     public List< Product > products() throws SQLException {
         return new ArrayList<>( jdbc.query( "SELECT " + PRODUCT_COLUMNS + " FROM work_product ORDER BY key",
             ps -> { }, PRODUCT_ROW ) );
@@ -424,7 +408,7 @@ abstract class JdbcWorkCatalog extends JdbcWorkRegistry implements WorkCatalogSt
                 ps -> { ps.setTimestamp( 1, timestamp( at ) ); ps.setLong( 2, product.id() ); } );
             if ( archived > 0 ) {
                 appendProductEvent( conn, product.id(), by, "archived", null, at.toString() );
-                JdbcProjectDefaults.clearFor( this, conn, product, by );
+                new JdbcProjectDefaults( jdbc, this ).clearFor( conn, product, by );
             }
             return null;
         } );

@@ -88,7 +88,7 @@ final class ItemPatchApplier {
         if ( level == WorkLevel.EPIC || project.defaultProductId() == null ) {
             return null;
         }
-        return store.product( project.defaultProductId() ).filter( p -> p.archivedAt() == null ).orElse( null );
+        return store.notifyStores().defaults().product( project.defaultProductId() ).filter( p -> p.archivedAt() == null ).orElse( null );
     }
 
     /** The unsaved item a draft describes once its parent and product are resolved. */

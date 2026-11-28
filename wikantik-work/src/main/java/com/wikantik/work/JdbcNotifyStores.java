@@ -32,6 +32,7 @@ final class JdbcNotifyStores {
             new JdbcWorkWebhooks( jdbc, catalog ), new JdbcWorkFind( jdbc ),
             new JdbcWorkFilters( jdbc ), new JdbcWorkAttachments( jdbc, catalog ),
             new JdbcWorkCodeHostStore( jdbc, catalog ), new JdbcWorkFlow( jdbc ),
-            new JdbcWorkIntake( jdbc, catalog instanceof JdbcWorkStore s ? new JdbcItemCreate( jdbc, s ) : null ) );
+            new JdbcWorkIntake( jdbc, catalog instanceof JdbcWorkStore s ? new JdbcItemCreate( jdbc, s ) : null ),
+            new JdbcProjectDefaults( jdbc, catalog ) );
     }
 }

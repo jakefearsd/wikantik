@@ -28,17 +28,37 @@ import java.util.Objects;
 import java.util.Optional;
 
 /** The project's default product: the guarded write and the clearing done when a product is archived. */
-final class JdbcProjectDefaults {
+final class JdbcProjectDefaults implements WorkProjectDefaultsStore {
 
     private static final String NOTE = "default_product";
 
-    private JdbcProjectDefaults() {
+    private final Jdbc jdbc;
+    private final JdbcWorkCatalog catalog;
+
+    JdbcProjectDefaults( final Jdbc jdbc, final JdbcWorkCatalog catalog ) {
+        this.jdbc = jdbc;
+        this.catalog = catalog;
+    }
+
+    @Override
+    public Optional< Product > product( final long id ) throws SQLException {
+        return jdbc.queryOne( "SELECT " + JdbcWorkCatalog.PRODUCT_COLUMNS + " FROM work_product WHERE id = ?",
+            ps -> ps.setLong( 1, id ), JdbcWorkCatalog.PRODUCT_ROW );
+    }
+
+    @Override
+    public void setDefaultProduct( final long projectId, final Product productOrNull, final Actor by )
+            throws SQLException {
+        JdbcWorkCatalog.requireAttributed( by.kind(), by.agentId() );
+        jdbc.inTransaction( conn -> {
+            set( conn, projectId, productOrNull, by );
+            return null;
+        } );
     }
 
     /** Sets or clears a project's default; writes one settings event, and only when the value changed. */
-    static void set( final JdbcWorkCatalog catalog, final Connection conn, final long projectId, final Product productOrNull,
-                     final Actor by ) throws SQLException {
-        final Jdbc jdbc = catalog.jdbc;
+    private void set( final Connection conn, final long projectId, final Product productOrNull, final Actor by )
+            throws SQLException {
         // the mapper yields an Optional because queryOne reads a null row value as "no row"
         final Long current = jdbc.queryOne( conn, "SELECT default_product_id FROM work_project WHERE id = ? FOR UPDATE",
                 ps -> ps.setLong( 1, projectId ),
@@ -70,9 +90,9 @@ final class JdbcProjectDefaults {
     }
 
     /** Clears an archived product from every project that defaults to it, one settings event per project. */
-    static void clearFor( final JdbcWorkCatalog catalog, final Connection conn, final Product archived, final Actor by )
+    void clearFor( final Connection conn, final Product archived, final Actor by )
             throws SQLException {
-        final List< Long > projects = catalog.jdbc.query( conn, "UPDATE work_project SET default_product_id = NULL "
+        final List< Long > projects = jdbc.query( conn, "UPDATE work_project SET default_product_id = NULL "
                 + "WHERE default_product_id = ? RETURNING id", ps -> ps.setLong( 1, archived.id() ),
             rs -> rs.getLong( "id" ) );
         for ( final Long projectId : projects ) {

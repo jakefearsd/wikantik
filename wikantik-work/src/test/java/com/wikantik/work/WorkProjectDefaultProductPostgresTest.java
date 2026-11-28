@@ -148,7 +148,7 @@ class WorkProjectDefaultProductPostgresTest {
     void staleProductObjectCannotBecomeTheDefaultAfterArchive() throws SQLException {
         store.archiveProduct( web, java.time.Instant.now(), ADMIN );
         final WorkValidationException e = assertThrows( WorkValidationException.class,
-            () -> store.setDefaultProduct( plat.id(), web, LENA ) );
+            () -> store.notifyStores().defaults().setDefaultProduct( plat.id(), web, LENA ) );
         assertEquals( "defaultProductKey", e.field() );
         assertEquals( "No such product: web", e.getMessage() );
         assertNull( reload( plat ).defaultProductId() );
@@ -156,7 +156,7 @@ class WorkProjectDefaultProductPostgresTest {
 
     @Test
     void archivingAnAlreadyArchivedProductWritesNoDefaultEvents() throws SQLException {
-        store.setDefaultProduct( plat.id(), web, LENA );
+        store.notifyStores().defaults().setDefaultProduct( plat.id(), web, LENA );
         final int afterSet = defaultEvents( plat ).size();
         store.archiveProduct( web, java.time.Instant.now(), ADMIN );
         final int before = defaultEvents( plat ).size();
@@ -178,7 +178,7 @@ class WorkProjectDefaultProductPostgresTest {
 
     @Test
     void setDefaultProductPersistsAndWritesOneSettingsEventWithKeys() throws SQLException {
-        store.setDefaultProduct( plat.id(), web, LENA );
+        store.notifyStores().defaults().setDefaultProduct( plat.id(), web, LENA );
         assertEquals( web.id(), reload( plat ).defaultProductId() );
         final List< WorkEvent > events = defaultEvents( plat );
         assertEquals( 1, events.size() );
@@ -188,15 +188,15 @@ class WorkProjectDefaultProductPostgresTest {
 
     @Test
     void settingTheSameDefaultAgainWritesNoEvent() throws SQLException {
-        store.setDefaultProduct( plat.id(), web, LENA );
-        store.setDefaultProduct( plat.id(), web, LENA );
+        store.notifyStores().defaults().setDefaultProduct( plat.id(), web, LENA );
+        store.notifyStores().defaults().setDefaultProduct( plat.id(), web, LENA );
         assertEquals( 1, defaultEvents( plat ).size() );
     }
 
     @Test
     void clearingWritesFromKeyToNull() throws SQLException {
-        store.setDefaultProduct( plat.id(), web, LENA );
-        store.setDefaultProduct( plat.id(), null, LENA );
+        store.notifyStores().defaults().setDefaultProduct( plat.id(), web, LENA );
+        store.notifyStores().defaults().setDefaultProduct( plat.id(), null, LENA );
         assertNull( reload( plat ).defaultProductId() );
         final List< WorkEvent > events = defaultEvents( plat );
         assertEquals( 2, events.size() );
@@ -206,8 +206,8 @@ class WorkProjectDefaultProductPostgresTest {
     @Test
     void archivingAProductClearsItAsEveryProjectsDefault() throws SQLException {
         final Project ops = store.createProject( "OPS", "Ops", "" );
-        store.setDefaultProduct( plat.id(), web, LENA );
-        store.setDefaultProduct( ops.id(), web, LENA );
+        store.notifyStores().defaults().setDefaultProduct( plat.id(), web, LENA );
+        store.notifyStores().defaults().setDefaultProduct( ops.id(), web, LENA );
         store.archiveProduct( web, java.time.Instant.now(), ADMIN );
         for ( final Project p : List.of( plat, ops ) ) {
             assertNull( reload( p ).defaultProductId() );
@@ -220,9 +220,9 @@ class WorkProjectDefaultProductPostgresTest {
 
     @Test
     void productByIdFindsArchivedProductsToo() throws SQLException {
-        assertEquals( "web", store.product( web.id() ).orElseThrow().key() );
+        assertEquals( "web", store.notifyStores().defaults().product( web.id() ).orElseThrow().key() );
         store.archiveProduct( web, java.time.Instant.now(), ADMIN );
-        assertNotNull( store.product( web.id() ).orElseThrow().archivedAt() );
-        assertTrue( store.product( web.id() + 1000 ).isEmpty() );
+        assertNotNull( store.notifyStores().defaults().product( web.id() ).orElseThrow().archivedAt() );
+        assertTrue( store.notifyStores().defaults().product( web.id() + 1000 ).isEmpty() );
     }
 }

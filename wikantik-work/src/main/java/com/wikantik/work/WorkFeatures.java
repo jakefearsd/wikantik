@@ -102,7 +102,7 @@ public final class WorkFeatures {
                 throw new WorkValidationException( "defaultProductKey", "No such product: " + productKey.trim() );
             }
         }
-        store.setDefaultProduct( s.project().id(), product, actor );
+        store.notifyStores().defaults().setDefaultProduct( s.project().id(), product, actor );
     }
 
     /** The most group names a suggestion call returns. */

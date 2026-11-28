@@ -158,7 +158,8 @@ final class ExternalMerge {
         }
         // E: the base only changes under the base lock, which is held, so the diff runs outside the session lock. An
         // ambiguous deletion is placed off the draft's own edits (a push landing meanwhile only weakens the preference):
-        // mapped over an edit inside it, a shifted deletion would cut the text beside it (fuzz seed PUBLISH_STORM 19005).
+        // mapped over an edit inside it, or only partly over text the draft deleted, a shifted deletion would cut the
+        // text beside it (fuzz seeds PUBLISH_STORM 19005, CALM 2457288260633022016).
         final ChangeSet e = same ? ChangeSet.empty( baseBody.length() ) : TextDiff.changeSet( baseBody, body, localEdits );
         lock.lock();
         try {

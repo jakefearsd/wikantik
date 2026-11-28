@@ -1,0 +1,393 @@
+{
+  "format": 1,
+  "seed": 2457288260633022016,
+  "profile": "CALM",
+  "config": {
+    "pageName": "SimPage",
+    "maxPageBytes": 65536,
+    "ringSize": 4,
+    "rewrite": "none",
+    "clients": 3
+  },
+  "initialDoc": "",
+  "steps": [
+    {
+      "id": 17,
+      "action": "DELETE"
+    },
+    {
+      "id": 32,
+      "action": "SEND_PULL",
+      "client": 1
+    },
+    {
+      "id": 41,
+      "action": "DELIVER",
+      "messageId": "32.0"
+    },
+    {
+      "id": 42,
+      "action": "DELIVER",
+      "messageId": "41.0"
+    },
+    {
+      "id": 44,
+      "action": "SEND_PULL",
+      "client": 1
+    },
+    {
+      "id": 45,
+      "action": "DELIVER",
+      "messageId": "44.0"
+    },
+    {
+      "id": 58,
+      "action": "PUBLISH",
+      "client": 0
+    },
+    {
+      "id": 59,
+      "action": "DELIVER",
+      "messageId": "58.0"
+    },
+    {
+      "id": 60,
+      "action": "RELEASE_PUBLISH"
+    },
+    {
+      "id": 74,
+      "action": "DELIVER",
+      "messageId": "60.1"
+    },
+    {
+      "id": 76,
+      "action": "DELIVER",
+      "messageId": "74.0"
+    },
+    {
+      "id": 80,
+      "action": "EXTERNAL_SAVE",
+      "from": 7,
+      "to": 7,
+      "insert": "k\n\nh\n中⟦GRMGU⟧"
+    },
+    {
+      "id": 85,
+      "action": "DELIVER",
+      "messageId": "76.0"
+    },
+    {
+      "id": 86,
+      "action": "EXTERNAL_SAVE",
+      "from": 6,
+      "to": 8,
+      "insert": "𝄞⟦EXGCI⟧"
+    },
+    {
+      "id": 93,
+      "action": "DELIVER",
+      "messageId": "85.0"
+    },
+    {
+      "id": 95,
+      "action": "DELIVER",
+      "messageId": "93.0"
+    },
+    {
+      "id": 96,
+      "action": "LOCAL_EDIT",
+      "client": 1,
+      "from": 0,
+      "to": 35,
+      "insert": "xuwk字\ngxael k😀jco文⟦WMHYW⟧"
+    },
+    {
+      "id": 106,
+      "action": "EXTERNAL_SAVE",
+      "from": 15,
+      "to": 15,
+      "insert": "x⟦ENNGH⟧"
+    },
+    {
+      "id": 112,
+      "action": "SEND_PUSH",
+      "client": 1
+    },
+    {
+      "id": 118,
+      "action": "EXTERNAL_SAVE",
+      "from": 3,
+      "to": 3,
+      "insert": "j⟦HJCAW⟧"
+    },
+    {
+      "id": 119,
+      "action": "DELIVER",
+      "messageId": "112.0"
+    },
+    {
+      "id": 127,
+      "action": "EXTERNAL_SAVE",
+      "from": 4,
+      "to": 4,
+      "insert": "\nc⟦GVNNS⟧"
+    },
+    {
+      "id": 132,
+      "action": "DELIVER",
+      "messageId": "119.0"
+    },
+    {
+      "id": 139,
+      "action": "EXTERNAL_SAVE",
+      "from": 6,
+      "to": 20,
+      "insert": "nf⟦QPHXQ⟧"
+    },
+    {
+      "id": 144,
+      "action": "SEND_PUSH",
+      "client": 1
+    },
+    {
+      "id": 147,
+      "action": "DELIVER",
+      "messageId": "132.0"
+    },
+    {
+      "id": 152,
+      "action": "DELIVER",
+      "messageId": "144.0"
+    },
+    {
+      "id": 162,
+      "action": "DELIVER",
+      "messageId": "147.0"
+    },
+    {
+      "id": 167,
+      "action": "DELIVER",
+      "messageId": "152.0"
+    },
+    {
+      "id": 170,
+      "action": "SEND_PUSH",
+      "client": 1
+    },
+    {
+      "id": 176,
+      "action": "DELIVER",
+      "messageId": "170.0"
+    },
+    {
+      "id": 185,
+      "action": "EXTERNAL_SAVE",
+      "from": 20,
+      "to": 20,
+      "insert": "\n協\n⟦KIUFD⟧"
+    },
+    {
+      "id": 192,
+      "action": "EXTERNAL_SAVE",
+      "from": 30,
+      "to": 38,
+      "insert": ""
+    }
+  ],
+  "outcome": {
+    "status": "FAIL",
+    "message": "token oracle: a server update dropped [ENNGH] from the draft without a recorded delete (text lost)",
+    "at": "192",
+    "kind": "token-oracle/lost"
+  },
+  "clients": [
+    {
+      "name": "A",
+      "authorKey": "author-A",
+      "trace": [
+        {
+          "type": "join",
+          "participantId": "mjuohs00.1-p1",
+          "clientId": "mjuohs00.1-c1",
+          "version": 0,
+          "doc": "\n"
+        }
+      ]
+    },
+    {
+      "name": "B",
+      "authorKey": "author-B",
+      "trace": [
+        {
+          "type": "join",
+          "participantId": "mjuohs00.1-p2",
+          "clientId": "mjuohs00.1-c2",
+          "version": 0,
+          "doc": "\n"
+        },
+        {
+          "type": "receive",
+          "fromVersion": 0,
+          "updates": []
+        },
+        {
+          "type": "sendable",
+          "version": 0,
+          "doc": "\n",
+          "sendable": []
+        },
+        {
+          "type": "receive",
+          "fromVersion": 0,
+          "updates": []
+        },
+        {
+          "type": "sendable",
+          "version": 0,
+          "doc": "\n",
+          "sendable": []
+        },
+        {
+          "type": "resync",
+          "version": 2,
+          "clientId": "mjuohs00.1-c4",
+          "participantId": "mjuohs00.1-p4",
+          "doc": "\nk\n\nh\n𝄞⟦EXGCI⟧GRMGU⟧\n",
+          "unsynced": 0
+        },
+        {
+          "type": "sendable",
+          "version": 2,
+          "doc": "\nk\n\nh\n𝄞⟦EXGCI⟧GRMGU⟧\n",
+          "sendable": []
+        },
+        {
+          "type": "local",
+          "changes": [
+            [
+              22,
+              "xuwk字",
+              "gxael k😀jco文⟦WMHYW⟧"
+            ]
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 2,
+          "doc": "xuwk字\ngxael k😀jco文⟦WMHYW⟧",
+          "sendable": [
+            {
+              "clientID": "mjuohs00.1-c4",
+              "changes": [
+                [
+                  22,
+                  "xuwk字",
+                  "gxael k😀jco文⟦WMHYW⟧"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "push",
+          "status": 409,
+          "version": 4
+        },
+        {
+          "type": "receive",
+          "fromVersion": 2,
+          "updates": [
+            {
+              "clientID": "server",
+              "changes": [
+                15,
+                [
+                  0,
+                  "x⟦ENNGH⟧"
+                ],
+                7
+              ]
+            },
+            {
+              "clientID": "server",
+              "changes": [
+                3,
+                [
+                  0,
+                  "j⟦HJCAW⟧"
+                ],
+                27
+              ]
+            },
+            {
+              "clientID": "server",
+              "changes": [
+                4,
+                [
+                  0,
+                  "",
+                  "c⟦GVNNS⟧"
+                ],
+                34
+              ]
+            },
+            {
+              "clientID": "server",
+              "changes": [
+                6,
+                [
+                  13,
+                  "nf⟦QPHXQ"
+                ],
+                28
+              ]
+            }
+          ]
+        },
+        {
+          "type": "sendable",
+          "version": 6,
+          "doc": "xuwk字\ngxael k😀jco文⟦WMHYW⟧j\ncnf⟦QPHXQ⟧x⟦ENNGH⟧",
+          "sendable": [
+            {
+              "clientID": "mjuohs00.1-c4",
+              "changes": [
+                [
+                  3,
+                  "xuwk字",
+                  "gxael k😀jco文⟦WMHYW⟧"
+                ],
+                12,
+                [
+                  12
+                ],
+                8,
+                [
+                  7
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "push",
+          "status": 409,
+          "version": 6
+        }
+      ]
+    },
+    {
+      "name": "C",
+      "authorKey": "author-C",
+      "trace": [
+        {
+          "type": "join",
+          "participantId": "mjuohs00.1-p3",
+          "clientId": "mjuohs00.1-c3",
+          "version": 0,
+          "doc": "\n"
+        }
+      ]
+    }
+  ]
+}

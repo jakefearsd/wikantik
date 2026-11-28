@@ -49,12 +49,15 @@ public final class TextDiff {
 
     /**
      * As {@link #changeSet(String, String)}, but a pure deletion whose position is ambiguous (the deleted run can slide
-     * along a repeat, as {@code "<A><B>"} losing {@code "<A>"} can also read as losing {@code "A><"}) is slid to the
-     * position that puts the fewest of {@code avoid}'s boundaries strictly inside it; ties keep the position the plain
-     * diff chose. {@code avoid} holds {@code {from, to}} ranges of {@code from} (a draft's local changes,
-     * {@link ChangeSet#touchedRanges}): a deletion mapped over an edit inside it is split around that edit, so a slid
-     * deletion takes out exactly the text that was deleted instead of a shifted run that cuts the neighbouring text. A
-     * slide never crosses a neighbouring change and never splits a surrogate pair.
+     * along a repeat, as {@code "<A><B>"} losing {@code "<A>"} can also read as losing {@code "A><"}) is slid off
+     * {@code avoid}, {@code {from, to}} ranges of {@code from} (a draft's local changes, {@link ChangeSet#touchedRanges}).
+     * First to the position that overlaps the most of the text those ranges already took out: mapped over that text, a
+     * deletion takes out only the rest, so the reading that shares the most of it takes the least text out of the draft,
+     * where a shifted one would take out text beside it that the new text kept (fuzz seed CALM 2457288260633022016).
+     * Then to the position that puts the fewest of their boundaries strictly inside it: a deletion mapped over an edit
+     * inside it is split around that edit, so the slid deletion takes out exactly the text that was deleted instead of a
+     * shifted run that cuts the neighbouring text (fuzz seed PUBLISH_STORM 19005). Ties keep the position closest to the
+     * one the plain diff chose. A slide never crosses a neighbouring change and never splits a surrogate pair.
      */
     public static ChangeSet changeSet( final String from, final String to, final List< int[] > avoid ) {
         final List< int[] > hunks = hunks( from, to, MAX_EDITS );
@@ -78,7 +81,8 @@ public final class TextDiff {
 
     /**
      * The shift (negative left, positive right) of the deletion {@code [a0, a1)} of {@code a} within {@code [lo, hi]}
-     * that puts the fewest {@code avoid} boundaries strictly inside it; 0 on a tie with the original position.
+     * that overlaps the most of {@code avoid}'s ranges and then puts the fewest of their boundaries strictly inside it;
+     * the smallest such shift, so 0 on a tie with the original position.
      */
     private static int bestSlide( final String a, final int a0, final int a1, final int lo, final int hi,
                                   final List< int[] > avoid ) {
@@ -91,18 +95,31 @@ public final class TextDiff {
             right++;
         }
         int best = 0;
+        int bestOverlap = overlap( a0, a1, avoid );
         int bestInside = inside( a0, a1, avoid );
-        for ( int shift = left; shift <= right && bestInside > 0; shift++ ) {
+        for ( int shift = left; shift <= right; shift++ ) {
             if ( shift == 0 || splitsPair( a, a0 + shift ) || splitsPair( a, a1 + shift ) ) {
                 continue;
             }
+            final int o = overlap( a0 + shift, a1 + shift, avoid );
             final int n = inside( a0 + shift, a1 + shift, avoid );
-            if ( n < bestInside || n == bestInside && Math.abs( shift ) < Math.abs( best ) ) {
+            if ( o > bestOverlap || o == bestOverlap && ( n < bestInside
+                    || n == bestInside && Math.abs( shift ) < Math.abs( best ) ) ) {
                 best = shift;
+                bestOverlap = o;
                 bestInside = n;
             }
         }
         return best;
+    }
+
+    /** How many characters of {@code [x, y)} the ranges of {@code avoid} cover (an insertion covers none). */
+    private static int overlap( final int x, final int y, final List< int[] > avoid ) {
+        int n = 0;
+        for ( final int[] r : avoid ) {
+            n += Math.max( 0, Math.min( y, r[ 1 ] ) - Math.max( x, r[ 0 ] ) );
+        }
+        return n;
     }
 
     /** How many boundaries of {@code avoid} lie strictly inside {@code (x, y)}. */

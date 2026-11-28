@@ -441,4 +441,38 @@ class TextDiffTest {
                 "a range ends inside a pair" );
         }
     }
+
+    // ---- deletions slid onto the draft's own deletion (fuzz seed CALM 2457288260633022016) -----------------------------
+
+    @Test
+    void anAmbiguousDeletionSlidesOntoTheDraftsOwnDeletion() {
+        // the page loses "<EXGCI>x"; prefix trimming deletes "XGCI>x<E" (the repeated "<E" shifts it right by two). The
+        // draft already deleted "<EXGCI>", whose end lies inside every reading; mapped over that deletion, the trimmed
+        // reading also takes "x<E" out of the draft and cuts the token the page kept
+        final String from = "q<KIUFD><EXGCI>x<ENNGH>\n";
+        final String to = "q<KIUFD><ENNGH>\n";
+        assertArrayEquals( new int[] { 10, 18 }, TextDiff.changeSet( from, to ).touchedRanges().get( 0 ), "the baseline trims right" );
+
+        final ChangeSet slid = TextDiff.changeSet( from, to, List.of( new int[] { 8, 15 } ) );
+
+        assertEquals( to, slid.apply( from ) );
+        assertArrayEquals( new int[] { 8, 16 }, slid.touchedRanges().get( 0 ) );
+        final ChangeSet local = ChangeSet.replace( from.length(), 8, 15, "" );
+        assertEquals( "q<KIUFD><ENNGH>\n", slid.map( local ).apply( local.apply( from ) ) );
+    }
+
+    @Test
+    void anAmbiguousDeletionWithNothingInsideStillSlidesOntoTheDraftsOwnDeletion() {
+        // the draft deleted only "<E" at [8,10); the trimmed reading [10,18) has no boundary inside it, yet mapped over
+        // that deletion it takes "XGCI>x<E" out of "q<KIUFD>XGCI>x<ENNGH>" and cuts the next token: [8,16) overlaps it
+        final String from = "q<KIUFD><EXGCI>x<ENNGH>\n";
+        final String to = "q<KIUFD><ENNGH>\n";
+
+        final ChangeSet slid = TextDiff.changeSet( from, to, List.of( new int[] { 8, 10 } ) );
+
+        assertEquals( to, slid.apply( from ) );
+        assertArrayEquals( new int[] { 8, 16 }, slid.touchedRanges().get( 0 ) );
+        final ChangeSet local = ChangeSet.replace( from.length(), 8, 10, "" );
+        assertEquals( "q<KIUFD><ENNGH>\n", slid.map( local ).apply( local.apply( from ) ) );
+    }
 }

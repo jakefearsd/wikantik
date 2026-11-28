@@ -1,6 +1,6 @@
 """Minimal MCP (Streamable HTTP) client for /knowledge-mcp. Stdlib only.
 
-Flow per CLAUDE.md: initialize -> capture Mcp-Session-Id -> notifications/initialized
+Flow per docs/agents/raw-mcp-calls.md: initialize -> capture Mcp-Session-Id -> notifications/initialized
 -> tools/call (every request carries the session id). Responses are text/event-stream.
 """
 import json

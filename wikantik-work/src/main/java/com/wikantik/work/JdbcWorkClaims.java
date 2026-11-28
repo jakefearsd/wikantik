@@ -40,9 +40,11 @@ import static com.wikantik.work.JdbcWorkStore.ITEM_SELECT;
 /**
  * Claims behind {@link JdbcWorkStore}. A claim is one {@code UPDATE ... RETURNING}: under READ COMMITTED a second
  * claimer waits on the row lock and then re-checks the {@code WHERE}, so exactly one wins and nothing else is
- * needed. A claim first takes shared locks on the agent row, the agent's member row and the (unarchived) project
- * row, so a retirement, removal, demotion or archive that is in flight is waited for (and the claim then finds no
- * row) rather than raced. Lock order is always agent row, member row, project row, item row; retirement locks agent
+ * needed. A claim first takes shared locks on the agent row (still naming the sponsor the actor was resolved with),
+ * the agent's member row, the sponsor's member rows that give at least {@code member} (skipped for a wiki-admin
+ * sponsor) and the (unarchived) project row, so a retirement, removal, demotion, sponsor change or archive that is in
+ * flight is waited for (and the claim then finds no row) rather than raced. Lock order is always agent row, the
+ * agent's member row, the sponsor's member rows, project row, item row; retirement locks agent
  * then items, removal and demotion lock the member row then items, archiving locks the project row then items, and
  * none takes the others' rows, so they cannot form a cycle.
  * Endings (release, expiry, loss of access, retirement) lock the rows they end in the same statement, name the

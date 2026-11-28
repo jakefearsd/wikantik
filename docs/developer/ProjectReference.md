@@ -465,3 +465,58 @@ When testing the `sparql_query` or any other tool on the `/knowledge-mcp` endpoi
 3. **Parse SSE**: Most `tools/call` responses return `text/event-stream`. You must split by `\n`, look for `data:`, and JSON-parse the payload to read `result.content[0].text`.
 4. **SPARQL Namespace**: The ontology requires the `wk:` prefix (`PREFIX wk: <https://wiki.wikantik.com/ns/wikantik#>`).
 5. **JSON bindings**: Standard `SELECT` queries will return standard `sparql-results-json` where you must parse `results.bindings`.
+
+## Detail moved from CLAUDE.md (2026-11-28)
+
+CLAUDE.md is capped at 30 KB (rules and map only). The descriptive and historical text it dropped is here; every rule stayed in CLAUDE.md.
+
+### Module descriptions
+
+- **wikantik-api**: Core interfaces and contracts (manager interfaces, frontmatter, page save, retrieval/bundle types, Page Graph interfaces).
+- **wikantik-main**: Main implementation — rendering, providers, auth, search, references, math parser, Obsidian vault importer (`com.wikantik.importer`: zip reader, planner, body rewriter, in-memory job registry; no schema change).
+- **wikantik-jdbc** test-jar ships `PostgresTestDb` (pgvector, all migrations applied — no H2), `@RequiresPostgres`, `FaultInjectingDataSource`.
+- **wikantik-http**: Servlet filters — CSRF, CORS, CSP, security headers, SPA routing, `/wiki/{slug}?format=md|json` content filter.
+- **wikantik-rest**: REST/JSON API (`/api/*`) and admin panel endpoints (`/admin/*`). Includes the structured-curation surfaces: `/api/frontmatter-schema`, `/api/frontmatter/validate`, and `/admin/embeddings/*` (dense-index status + frontmatter backfill).
+- **wikantik-mcp-core**: Shared MCP substrate — `McpTool`/`McpToolUtils`/`McpAudit`, endpoint bootstrap, the access filter, config. Hosts no tools since the Knowledge Graph removal (its shared `QueryNodesTool`/`SearchKnowledgeTool` were deleted). Extracted in 2.3.0 to break the `wikantik-knowledge → wikantik-admin-mcp` module cycle.
+- **wikantik-admin-mcp**: 24 tools: page authoring/inspection, `list_retrieval_queries`, `list_reader_engagement`, `list_agent_reports`, `rename_cluster` (plan unless `confirm=true`), `list_content_opportunities` + `snooze_opportunity`, `list_comment_threads` + `respond_to_comment_thread`.
+- **wikantik-knowledge**: 17 tools when fully wired: 16 read-only plus `file_agent_report`, the endpoint's one write (field reports, SA-22) (retrieval, structural spine, `get_page_neighbors`, `get_page_for_agent`, `read_pages`, `get_ontology`/`sparql_query`, `list_stale_citations`, `get_briefing` — ADR-0011).
+- **wikantik-tools**: OpenAPI 3.1 tool server at `/tools/*` — 2 tools (`search_wiki`, `get_page`) for OpenWebUI-compatible non-MCP clients.
+- **wikantik-extract-cli**: Offline CLIs (`ChunkerStatsCli`, `CorpusDivergenceCli`, `GenerateMainPageCli`, `GenerateConfigReferenceCli`, …). Also hosts `IngestDocumentsCli` — the derived-pages batch ingester (an HTTP client over `POST /api/ingest`, walks a folder).
+- **wikantik-agent-reports**: agent field reports (SA-22): validation, append-only store (`agent_report*`, V098), per-key-owner hourly limit. Built to be extracted; surfaces are `file_agent_report` (knowledge MCP), `list_agent_reports` (admin MCP) and `/admin/agent-reports`.
+- **wikantik-work** (work management): projects, epics/stories/tasks, comments, queues, agents (each capped by a sponsor, with its own `wka_` token), claims, change records with autonomy gates, deployments, intake for people outside a project (the `reporter` role) and an append-only event log in `work_*` tables (V074, V076–V096, V099, no V093).
+- **wikantik-frontend**: React SPA (Vite build) — reader, editor, admin panel, Page Graph viewer (the Knowledge Graph UI was removed 2026-11-08).
+- **wikantik-it-tests**: Cargo-launched Tomcat + PostgreSQL/pgvector ITs. Default gate modules: `wikantik-it-test-rest` (REST + Selenide browser, built on the `wikantik-selenide-tests` test-jar), `-work` (work management: REST, `/work-mcp`, the `/work` UI), `-sso` (Keycloak OIDC+SAML), `-custom-jdbc`, `-dense` (the only one with embeddings on). Opt-in: `-scim-fullloop` (Authentik).
+
+### Page Graph and the removed Knowledge Graph (history)
+
+- Page Graph UI: `/page-graph`, `/admin/page-graph/*`.
+- Knowledge Graph removed (2026-11): LLM-extracted entities, their curation tools, the inclusion policy, the judge and hub discovery were switched off in 2.5.12 and deleted in the following release (migration `V070` dropped the `kg_*`/`hub_*`/`chunk_entity_mentions` tables; plans `docs/superpowers/plans/2026-11-08-kg-retirement-pass.md` and `2026-11-09-kg-deletion.md`). `kg_include` frontmatter was stripped from every prod page (2026-11-09). The LLM-activity log and hub-synthesis metric leftovers were renamed (embedding activity, `wikantik_hub_summary_overlay_total`).
+- "Similar pages" and agent `relatedPages` come from page-embedding centroids (`PageEmbeddingSimilarity`).
+- Citation edges are version-pinned + span-hashed with graded staleness.
+- `wikantik-ontology` kept by decision 2026-11-09 after the KG removal.
+
+### Active design documents (status)
+
+- AgentGradeContentDesign: `type: runbook`, page verification, `/api/pages/for-agent/{id}` projection, derived `agent_hints`, retrieval-quality CI. All six phases shipped 2026-04-25.
+- PageGraphVsKnowledgeGraph: the Page Graph explainer and what replaced each job of the removed Knowledge Graph.
+- ClusterDeclarationDesign: all 7 phases shipped (2.4.0, ADR-0009).
+- HybridRetrieval levers that worked (recall@12 0.60→0.74): the `ContentChunker` heading-boundary fix and contextual embeddings (`EmbeddingTextBuilder.forDocument` prefixes `Page | Cluster | Section` + summary).
+- RetrievalExperimentHarness: implemented, not yet scheduled. IndexingSupport: raw content + change feed + sitemap for RAG/SEO.
+- StructuralSpineDesign: structural index (a Page Graph sub-area).
+- Work management design (`docs/superpowers/specs/2026-11-15-work-management-design.md`): all four phases built, behind `wikantik.work.enabled`: 1 (core: projects, board, items, dates, activity, REST, `/work` UI), 2 (queues, agents, claims, `/work-mcp`, the assignment log), 3a (agent sponsors and agents' own credentials: `docs/superpowers/specs/2026-11-16-work-agent-identity-design.md`), 3b (change records, autonomy gates, acknowledging work closed without a person: `docs/superpowers/plans/2026-11-16-work-management-phase3b-changes-autonomy.md`) and 4 (deployments, the deploy gate, `bin/work-deploy-gate.sh`, the incident path: `docs/superpowers/plans/2026-11-16-work-management-phase4-deployments.md`).
+- RAG-as-a-Service: default source is global dense chunks.
+
+### Security model (descriptive bullets)
+
+JAAS-based authentication and authorization. Fine-grained permissions: `view`, `comment`, `edit`, `modify`, `upload`, `rename`, `delete` (page); `createPages`, `createGroups`, `editPreferences`, `editProfile`, `login` (wiki). Database-backed policy grants (default role permissions in the `policy_grants` table, managed at `/admin/security`; always active when `wikantik.datasource` is configured, the default). Database-backed groups (`groups` + `group_members`, admin UI). Bootstrap admin override: `wikantik.admin.bootstrap` guarantees admin access during initial setup. NIST 800-63B password validation with common-password blocklist. Pluggable authentication (LDAP, database, container, SSO via pac4j).
+
+### Environment notes
+
+- Docker row, full: required by the IT phase of `bin/run-tests.sh` (per-module pgvector containers and the shared CPU-ollama embedder, `docker/docker-compose.embeddings.yml`, port 11435); also used by `bin/deploy-local.sh` for a dev embedder on 11434. The model volume is per-instance (`wikantik-embed-dev_ollama-models` / `wikantik-embed-test_ollama-models`), so a cold machine pays the ~600 MB download once for dev and once for tests, on purpose. `IT_EMBED_URL` here is `http://docker2.lan:11434` (an iGPU embedder kept off prod's docker1; inference.lan before 2026-11-14).
+- Credentials snippet: `source <(grep -v '^#' test.properties | sed 's/^test.user.//' | sed 's/=/="/' | sed 's/$/"/')` then `curl -u "${login}:${password}" -X POST http://localhost:8080/admin/content/rebuild-indexes`.
+- Unit-test fork partitioning (`wikantik.surefire.forkCount`, default `0.5C`) cut the full build from ~10:30 to ~4:00. Gate timing: ~6-8 min warm; Apache RAT shows ~1,990 files without headers.
+- Generic token rules dropped from CLAUDE.md (the harness already says them): targeted reads with offset/limit, Grep/Glob before Read, don't re-read files in context, batch parallel tool calls, don't narrate or echo file contents.
+- Triage labels verified 2026-08-16; `/grill-with-docs` creates `CONTEXT.md` lazily; SimpleAgilityStackHub, ObservabilityPlane, TelemetryContract, FeedbackLoopPattern and OnCallAutomation are the Simple Agility contract pages (`/metrics`, structured-log envelope + `correlation_id`, `/healthz`, escalation ladder, scoped-admin surfaces).
+- The `ClusterPath` / agent-reports / rendered-fence notes: rendered fences are validated server-side and in the frontend; unsafe sources are shown as source plus reason; Mermaid draws in the browser, PlantUML emits a signed placeholder.
+- Raw MCP script rules moved to [docs/agents/raw-mcp-calls.md](../agents/raw-mcp-calls.md).
+- Graphviz install: `apt-get install graphviz`. Local `ROOT.xml` is the Tomcat context with PostgreSQL JNDI DataSources; `wikantik-custom.properties` holds page provider, base URL, PostgreSQL JDBC.

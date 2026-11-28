@@ -1,29 +1,29 @@
 # CLAUDE.md
 
+Rules and map only, ≤ 30 KB: this file loads into every session. Status, history and how-it-works go to docs/developer/ProjectReference.md.
+
 <!-- SIMPLE-AGILITY-AGENT-HEADER-START -->
 ## Simple Agility Architectural Context
 This repository is part of the **Simple Agility** small-business ecosystem:
 - **Architecture Hub:** Refer to `SimpleAgilityStackHub` on Wikantik (`https://wiki.wikantik.com/SimpleAgilityStackHub`).
 - **Architectural Decisions:** Consult `SimpleAgilityDecisionLog` before changing cross-repo APIs, logging, or telemetry.
 - **Active Initiatives & Coordination:** Check `SimpleAgilityAgentCoordination` before starting multi-repo work.
-- **Session start:** call `get_briefing(clusters=["wikantik-development"], prompt="<your first task>")` on the Wikantik knowledge MCP; the briefing carries this project's pages and the contracts it cites (`SA-13`).
+- **Session start:** a UserPromptSubmit hook (`clients/claude-code/briefing-hook.sh`) injects the prod `wikantik-development` briefing once per session. Call `get_briefing(clusters=["wikantik-development"], prompt=…)` on the knowledge MCP yourself only when that block is missing or the task needs another cluster (SA-13).
 - **Role Boundary:** Optimize local product logic, but never break cross-product contracts or telemetry conventions.
 - **Record decisions:** when a change binds another repository (an API or event shape, a published port, a login or grant another product uses, a schema or view another product reads, a log or label name), add a new `SA-<n>` entry to `SimpleAgilityDecisionLog` (Decision, Why, Consequences) in the same piece of work, and link it from the normative page. Supersede, never rewrite.
 - **Field report:** at the end of substantive work, file one field report with `file_agent_report` on the Wikantik knowledge MCP (skill `agent-field-report`, canonical text on `SimpleAgilityAgentFieldReportSkill`; `SA-22`).
 <!-- SIMPLE-AGILITY-AGENT-HEADER-END -->
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Wikantik, **jakemon** (`~/source/jakemon`, the observability plane) and **Roller** are Simple Agility components. Contracts live on the wiki: `SimpleAgilityObservabilityPlane` (what jakemon owns; the "do not build this in your backend" list), `SimpleAgilityTelemetryContract`, `SimpleAgilityFeedbackLoopPattern`, `SimpleAgilityOnCallAutomation`. Read **`SimpleAgilityRoadmap`** before going looking for a capability: contracts state intent, the roadmap states what is built.
+- Read the plane page before adding any metrics/log/event store, poller, alerting, or SLO computation — those belong to jakemon. Apply its **"rule that decides where data lives"** first: telemetry emitted for *observation* goes to the plane, but data that is a *functional input* to Wikantik's behavior stays a product table — `retrieval_query_log`, `briefing_log`, `content_change_log`, `search_visibility_snapshot` and `/admin/audit` are correct as they are and must not be "consolidated" into Loki. Content Intelligence (`wikantik-insights`) is the reference implementation of the loop pattern.
+- Conformance is machine-checked: `bin/simple-agility-conformance.sh --base-url http://localhost:8080 --prefix wikantik`
+
 The preferred development approach is test-driven development: put a test in place to demonstrate a
 defect before repairing it, so we know the test actually detects the issue.
 
 - Sole developer on this repo — work directly on main, no feature branches or PRs.
 - Never swallow exceptions with empty catch blocks — always log at least a `LOG.warn()` with context and message.
 - Don't use plan mode for trivial tasks (git add, single commands) — just do them directly.
-
-Operational runbooks (container/remote deployment, load testing) live in
-**[docs/admin/WikantikOperations.md](docs/admin/WikantikOperations.md)**, and the detailed design-doc status
-blocks live in **[docs/developer/ProjectReference.md](docs/developer/ProjectReference.md)** — both kept out
-of this file so it stays focused on rules + the architecture map.
 
 ## Superpowers skills — when they apply
 
@@ -50,37 +50,24 @@ uncovers a bug), escalate to the matching skill the moment it stops being mechan
 | Tool | Version | Notes |
 |------|---------|-------|
 | Java (JDK) | 25+ | `java -version` |
-| Maven | 3.9+ (recommended); enforced floor is 3.5 via `requireMavenVersion` | `mvn -version` |
-| Node.js + npm | 20.19+ (or 22.12+) | Required by Vite 8 (Rolldown). WAR build runs `npm install` + `vite build` automatically |
-| PostgreSQL | 15+ | For local deployment. **Unit tests that touch a database run against a real pgvector container** (`PostgresTestDb`, via Docker) with the migrations applied — there is no H2 schema. Without Docker those tests skip locally with a visible reason; CI passes `-Dtests.requireDocker=true` so an absent daemon **fails** the run |
-| Docker (+ compose) | any recent | Required by the IT phase (per-module pgvector containers + the shared CPU-ollama embedder on 11435, or an external one via `IT_EMBED_URL` in the env or `.env`; on this machine it is `http://docker2.lan:11434` (an iGPU embedder kept off prod's docker1; inference.lan before 2026-11-14), and no local Ollama is run) and by `deploy-local.sh` (dev embedder on 11434; opt out with `WIKANTIK_LOCAL_EMBEDDINGS=false`). **The first run per instance pulls the ~600 MB `qwen3-embedding:0.6b` model** (once for dev, once for tests — the volumes are per-project on purpose): a download, not a hang. |
-| Graphviz (`dot`) | any recent | **Only** for the code-health **site** build (`bin/site.sh`) module-coupling SVG. `apt-get install graphviz`. Optional — without it the site links the raw `.dot` instead. |
-
-The `tomcat/` directory is **gitignored** and created on first run of `deploy-local.sh`.
+| Maven | 3.9+ (floor 3.5, `requireMavenVersion`) | `mvn -version` |
+| Node.js + npm | 20.19+ (or 22.12+) | Vite 8 (Rolldown). The WAR build runs `npm install` + `vite build` |
+| PostgreSQL | 15+ | Local deployment. **DB unit tests run against a real pgvector container** (`PostgresTestDb`, via Docker), migrations applied — no H2 schema. Without Docker they skip locally; CI passes `-Dtests.requireDocker=true` so an absent daemon **fails** the run |
+| Docker (+ compose) | any recent | IT phase (per-module pgvector + the shared CPU-ollama embedder on 11435, or an external one via `IT_EMBED_URL` in env or `.env`; here `http://docker2.lan:11434`; no local Ollama) and `deploy-local.sh` (dev embedder on 11434; opt out `WIKANTIK_LOCAL_EMBEDDINGS=false`). First run pulls the ~600 MB `qwen3-embedding:0.6b` model: a download, not a hang. |
+| Graphviz (`dot`) | any recent | Optional; only the `bin/site.sh` coupling SVG (else the raw `.dot` is linked). |
 
 ## Development Commands
 
 ### Build Commands
 ```bash
-# Standard build (includes tests and Apache RAT check)
-mvn clean install
-
-# Build without RUNNING tests (faster; not for final checks). Use -DskipTests,
-# NOT -Dmaven.test.skip: the latter also skips building wikantik-main's test-jar,
-# which wikantik-tools and the IT modules depend on — so a full-reactor build
-# fails ("could not resolve …:jar:tests"), most reliably right after a release
-# version bump when no prior test-jar is cached in ~/.m2. -DskipTests still
-# builds the test-jars, it just doesn't run the tests.
-mvn clean install -DskipTests
-
-# Parallel build for faster execution (unit tests only, NOT integration tests)
-mvn clean install -T 1C -DskipITs
+mvn clean install                 # standard build (tests + Apache RAT check)
+mvn clean install -DskipTests     # faster; not for final checks
+mvn clean install -T 1C -DskipITs # parallel; unit tests only
 ```
 
-Unit tests in wikantik-main and wikantik-rest run partitioned across forked JVMs
-(`wikantik.surefire.forkCount`, default `0.5C` — cut the full build from ~10:30 to
-~4:00). Pass `-Dwikantik.surefire.forkCount=1` to force a fully sequential run when
-debugging a suspected cross-test interaction.
+Use -DskipTests, never -Dmaven.test.skip: the latter skips the test-jars wikantik-tools and the ITs depend on.
+
+Pass `-Dwikantik.surefire.forkCount=1` (default `0.5C`) to force a sequential unit run when debugging cross-test interaction.
 
 ### Long builds — subagent protocol
 
@@ -105,54 +92,39 @@ idle agent. Keep polling until you can report SUCCESS or FAILED.
 
 ### Manual Testing Credentials
 
-A dedicated admin account exists for manual and automated testing against the local deployment.
-Credentials are stored in `test.properties` (gitignored, project root):
-
-```bash
-# Read credentials
-cat test.properties
-# test.user.login=testbot
-# test.user.password=<password>
-```
-
-Use these credentials wherever a logged-in admin is needed — browser login, REST API calls, curl:
-
-```bash
-# Example: trigger a search-index rebuild as an authenticated admin
-source <(grep -v '^#' test.properties | sed 's/^test.user.//' | sed 's/=/="/' | sed 's/$/"/')
-curl -u "${login}:${password}" -X POST http://localhost:8080/admin/content/rebuild-indexes
-```
-
-The account (`testbot`, role `Admin`) lives in the local database. To recreate it after a database reset, see
+Admin `testbot` (role `Admin`, local database); credentials in `test.properties` (gitignored; `test.user.login`, `test.user.password`). Use it for browser, REST, curl (`curl -u testbot:<pw> -X POST http://localhost:8080/admin/content/rebuild-indexes`). Recreate after a database reset: see
 [ProjectReference](docs/developer/ProjectReference.md#recreating-the-testbot-account).
 
-### Testing Commands
+### Testing Commands and Integration Test Parallelism
 ```bash
-# CANONICAL pre-commit gate (~6-8 min warm): Phase 1 runs every unit test once
-# (-T 1C -DskipITs), then the CI static checks (PMD ratchet, npm audit — fails only
-# under --all, the release gate — eslint, vitest --coverage), then Phase 2 runs the
-# four IT modules in one -T 4 reactor. REQUIRES DOCKER (see Prerequisites for the
-# shared 11435 embedder and its first-run model download; watch it with
-# docker logs -f $(docker ps -qf name=wikantik-embed-test)).
-bin/run-tests.sh --parallel 4
-
-# RELEASE gate (adds the opt-in suites; npm audit becomes fatal, ~15 min)
-bin/run-tests.sh --all
-
-# Fallbacks: bin/run-tests.sh (sequential IT phase). Dense module alone: bin/run-tests.sh --module dense
+bin/run-tests.sh --parallel 4          # CANONICAL pre-commit gate (~6-8 min warm): unit phase, CI static checks, 4-wide parallel IT phase
+bin/run-tests.sh --all                 # RELEASE gate: adds the opt-in suites; npm audit becomes fatal (~15 min)
+bin/run-tests.sh                       # fallback: sequential IT phase (e.g. diagnosing a cross-module issue)
+bin/run-tests.sh --module dense        # dense IT module alone
+mvn clean install -T 1C -DskipITs      # unit tests only; parallel is fine here
 ```
+
+The gate REQUIRES DOCKER (watch the shared embedder with `docker logs -f $(docker ps -qf name=wikantik-embed-test)`). Its static checks: PMD ratchet, npm audit (fails only under `--all`), eslint, vitest `--coverage`.
+
+Parallel IT execution is supported ONLY through `bin/run-tests.sh --parallel N`: its single
+reactor gives every IT module a build-helper-reserved free port set and a uniquely-named pgvector
+container. Do NOT bolt `-T` onto a raw `mvn clean install -Pintegration-tests` invocation. run-tests.sh
+also serializes runs per checkout via a lock; concurrent Maven builds on one working tree corrupt
+each other's surefire state. The opt-in Authentik scim-fullloop suite always runs sequentially and is
+never folded into `--parallel`.
+
+The shared embedder is the one resource NOT per-module: run-tests.sh starts a single container on
+11435 for the whole IT phase. Only `wikantik-it-test-dense` uses it. Invoking that module's failsafe
+run directly (bare `mvn -pl …`) skips that setup and the suite fails at `@BeforeAll` with the compose
+command it wanted — start it by hand or use `bin/run-tests.sh --module dense`.
 
 ### Local Deployment (Tomcat 11)
 
-The local Tomcat instance lives at `tomcat/tomcat-11` (gitignored). Use this for running and testing — do not use Cargo.
+Local Tomcat lives at `tomcat/tomcat-11` (gitignored, created by `deploy-local.sh`). Use it for running and testing — do not use Cargo. ROOT context, serving `docs/wikantik-pages/`.
 
-The wiki is deployed as the ROOT context, serving pages from `docs/wikantik-pages/` (version-controlled).
+Config (gitignored; templates in `wikantik-war/src/main/config/tomcat/`, applied by `deploy-local.sh`): `tomcat/tomcat-11/lib/wikantik-custom.properties`, `tomcat/tomcat-11/conf/Catalina/localhost/ROOT.xml`.
 
-Configuration files (gitignored; templates in `wikantik-war/src/main/config/tomcat/`, applied by `deploy-local.sh`):
-- `tomcat/tomcat-11/lib/wikantik-custom.properties` — wiki settings (page provider, base URL, PostgreSQL JDBC, etc.)
-- `tomcat/tomcat-11/conf/Catalina/localhost/ROOT.xml` — Tomcat context with PostgreSQL JNDI DataSources
-
-First-time setup on a fresh clone and running migrations by hand (e.g. against production): use the `local-setup` skill.
+First-time setup on a fresh clone, and running migrations by hand (e.g. against production): `local-setup` skill.
 
 #### Adding a schema change
 
@@ -172,151 +144,76 @@ mvn clean install -DskipTests -T 1C
 bin/redeploy.sh    # shutdown + rotate catalina.out + swap WAR + startup
 ```
 
-`bin/redeploy.sh` is the fast iteration path. It **does** run
-`bin/db/migrate.sh` (idempotent — applies only pending `V*.sql`, as the app
-role from `.env`), but it does **not** re-run template materialisation,
-secrets validation, Tomcat-upgrade snapshot logic, or dev-user seeding. For
-first-time setup, Tomcat upgrades, or anything that touches
-`wikantik-custom.properties` / `ROOT.xml`, run `bin/deploy-local.sh` instead.
+`bin/redeploy.sh` runs `bin/db/migrate.sh` (idempotent, pending `V*.sql` only, as the app role from `.env`) but does **not** re-run template materialisation, secrets validation, Tomcat-upgrade snapshot logic, or dev-user seeding. For first-time setup, Tomcat upgrades, or anything touching `wikantik-custom.properties` / `ROOT.xml`, run `bin/deploy-local.sh`.
 
 ### Code Quality
 ```bash
-# Apache RAT — informational only: bound to no phase, run by no CI job, and red everywhere
-# (~1,990 files without Apache headers). A red run is not a regression to chase.
+# Apache RAT — informational only, red everywhere; a red run is not a regression to chase.
 mvn apache-rat:check
 
-# CI-enforced complexity ratchet — fails on any NEW PMD design-rule violation
-# not already in the burn-down baseline build-support/pmd-complexity-baseline.properties
-# (entries only ever come out)
+# CI ratchet: fails on any NEW PMD design-rule violation not in build-support/pmd-complexity-baseline.properties (entries only ever come out)
 mvn pmd:check -Pcomplexity-gate
 
-# Per-module line-coverage ratchet (JaCoCo check under -Pcoverage): floors pinned per pom,
-# measured level rounded down, only ever raised, capped at 0.90.
+# Per-module line-coverage ratchet (JaCoCo): floors pinned per pom, only ever raised, capped at 0.90.
 mvn clean install -Pcoverage -DskipITs
 ```
 
-Code-health site: `bin/site.sh` (-> `target/staging/index.html`). Publishing it and the marketing site to www.wikantik.com is `bin/deploy-marketing.sh` — it prompts for sudo, so it must be run with `!`; flags are in [WikantikOperations](docs/admin/WikantikOperations.md) and [ProjectReference](docs/developer/ProjectReference.md#code-health-site-and-static-analysis).
+Code-health site: `bin/site.sh`. Publishing it and the marketing site is `bin/deploy-marketing.sh` — it prompts for sudo, so run it with `!`; flags in [WikantikOperations](docs/admin/WikantikOperations.md) and [ProjectReference](docs/developer/ProjectReference.md#code-health-site-and-static-analysis).
 
-High test coverage at the line level, above 90% is a goal for this development team,
-and while we recognize it is not a perfect measurement, it is one we choose to pursue.
+Line coverage above 90% is a goal for this team: imperfect, but the one we pursue.
 
-> Container/remote deployment and load testing live in
-> [docs/admin/WikantikOperations.md](docs/admin/WikantikOperations.md).
+> Container/remote deployment and load testing runbooks: [docs/admin/WikantikOperations.md](docs/admin/WikantikOperations.md);
+> design-doc status: [ProjectReference](docs/developer/ProjectReference.md).
 > **Agent shells are blocked** from `bin/deploy-release.sh`, writes on docker1, and installing
-> timers/cron. Hand the exact command to the user to run with `!`, then verify the result
-> yourself (health, `/api/capabilities`, `bin/smoke-wiki.sh http://docker1:8080`).
+> timers/cron. Hand the user the exact command to run with `!`, then verify yourself (health, `/api/capabilities`, `bin/smoke-wiki.sh http://docker1:8080`).
 
 ## Architecture Overview
 
-### Wikantik is one component of the Simple Agility stack
-
-Wikantik, **jakemon** (`~/source/jakemon`, the observability plane) and **Roller** are components of the
-**Simple Agility** stack. The cross-repo contracts live on the wiki (canonical, not mirrored here):
-`SimpleAgilityStackHub` → `SimpleAgilityObservabilityPlane` (what jakemon owns; push feeds vs pull
-queries; the "do not build this in your backend" list), `SimpleAgilityTelemetryContract` (`/metrics`,
-structured-log envelope + `correlation_id`, `/healthz`), `SimpleAgilityFeedbackLoopPattern`, and
-`SimpleAgilityOnCallAutomation` (escalation ladder; the scoped-admin surfaces products must expose),
-and **`SimpleAgilityRoadmap`** — read that one before going looking for a capability, because the
-contracts state intent while the roadmap states what is actually built.
-
-Start an agent session with `get_briefing(clusters=["wikantik-development"], prompt="<your first task>")` on the knowledge MCP; the briefing carries this repository's pages and the Simple Agility contracts they cite (SA-13, ADR-0011).
-
-Read the plane page before adding any metrics/log/event store, third-party poller, alerting, or SLO
-computation to Wikantik — those belong to jakemon. Apply its **"rule that decides where data lives"**
-first: telemetry emitted for *observation* goes to the plane, but data that is a *functional input* to
-Wikantik's own behavior stays a product table — `retrieval_query_log`, `briefing_log`,
-`content_change_log`, `search_visibility_snapshot` and `/admin/audit` are all correct as they are and
-must not be "consolidated" into Loki. Content Intelligence (`wikantik-insights`) is the reference
-implementation of the loop pattern.
-
-Telemetry conformance is machine-checked, not a prose checklist:
-
-```bash
-bin/simple-agility-conformance.sh --base-url http://localhost:8080 --prefix wikantik
-```
-
 ### Page Graph (and the removed Knowledge Graph)
 
-The Page Graph is the only graph. The Knowledge Graph was removed; the note below says what is left.
-
-- **Page Graph.** Edges are real page-to-page wikilinks parsed from page bodies, nothing else.
-  Co-resident: `canonical_id` (rename-stable id) and `cluster:` (hub membership). Code
-  `com.wikantik.pagegraph.*`, `com.wikantik.api.pagegraph`; UI `/page-graph`, `/admin/page-graph/*`.
-- **Knowledge Graph — REMOVED (2026-11).** LLM-extracted entities, their curation tools,
-  the inclusion policy, the judge and hub discovery were switched off in 2.5.12 and deleted
-  in the following release (migration `V070` dropped the `kg_*`/`hub_*`/`chunk_entity_mentions`
-  tables; plans `docs/superpowers/plans/2026-11-08-kg-retirement-pass.md` and
-  `2026-11-09-kg-deletion.md`). Do not reintroduce it without new evidence. `kg_include`
-  frontmatter was stripped from every prod page (2026-11-09) — don't write it. The LLM-activity log and
-  hub-synthesis metric leftovers were renamed (embedding activity, `wikantik_hub_summary_overlay_total`);
-  renaming the remaining KG-named leftovers below stays **deferred by decision**; don't start it
-  unasked. Still here despite the names: `kg_content_chunks`/`content_chunk_embeddings` (dense retrieval), the
-  `wikantik-knowledge` module and `/knowledge-mcp` endpoint (retrieval + structure tools), and
-  `com.wikantik.knowledge.*` (chunking, bundle, briefing, agent projection, eval, query log).
-  "Similar pages" and agent `relatedPages` come from page-embedding centroids
-  (`PageEmbeddingSimilarity`).
-- **Citation edges.** A third, derived edge type: inline `cite://` claims grounded in a target
-  section, parsed at save into `citations`, version-pinned + span-hashed with graded staleness.
-  Code `com.wikantik.citation.*`; surfaces `/admin/drift/citations`, `list_stale_citations`,
-  for-agent `stale_citations`.
-
-Naming convention: the bare word "graph" is a code smell. Always say
-"Page Graph" (or `pagegraph` in identifiers).
+- **Page Graph is the only graph.** Edges are real page-to-page wikilinks parsed from page bodies, nothing else. Co-resident: `canonical_id` (rename-stable id) and `cluster:` (hub membership). Code `com.wikantik.pagegraph.*`, `com.wikantik.api.pagegraph`.
+- **Knowledge Graph — REMOVED.** Do not reintroduce it without new evidence; don't write `kg_include` frontmatter. Renaming the KG-named leftovers is **deferred by decision**; don't start it unasked. Still live despite the names: `kg_content_chunks`/`content_chunk_embeddings` (dense retrieval), the `wikantik-knowledge` module and `/knowledge-mcp` endpoint (retrieval + structure tools), `com.wikantik.knowledge.*` (chunking, bundle, briefing, agent projection, eval, query log).
+- **Citation edges.** Derived third edge type: inline `cite://` claims, parsed at save into `citations`. Code `com.wikantik.citation.*`; surfaces `/admin/drift/citations`, `list_stale_citations`, for-agent `stale_citations`.
+- Naming: the bare word "graph" is a code smell. Always say "Page Graph" (or `pagegraph` in identifiers).
 
 ### Module Structure
 
-- **wikantik-api**: Core interfaces and contracts (manager interfaces, frontmatter, page save, retrieval/bundle types, Page Graph interfaces)
-- **wikantik-main**: Main implementation — rendering, providers, auth, search, references, math parser, Obsidian vault importer (`com.wikantik.importer`: zip reader, planner, body rewriter, in-memory job registry; no schema change)
-- **wikantik-jdbc**: **The one way to touch the database.** `com.wikantik.jdbc.Jdbc` is the only data-access primitive (`JdbcSupport` is the `extends` convenience); `inTransaction` rolls back on any `Throwable`. Enforced by `JdbcAccessArchTest` (J-1; sole carve-out `JDBCPlugin`). Its test-jar ships `PostgresTestDb` (pgvector, all migrations applied — no H2), `@RequiresPostgres`, `FaultInjectingDataSource`. **Adding a repository:** hold a `Jdbc`, write the migration first, test against `PostgresTestDb`; a multi-statement write gets a rollback test. ADR-0010.
-- **wikantik-cache-memcached**: Memcached adapter, **opt-in, not wired into the WAR** (override the `CachingManager` mapping in `classmappings.xml`, set `wikantik.cache.memcached.servers`). Kept for multi-node deployments.
-- **wikantik-http**: Servlet filters — CSRF, CORS, CSP, security headers, SPA routing, `/wiki/{slug}?format=md|json` content filter
-- **wikantik-rest**: REST/JSON API (`/api/*`) and admin panel endpoints (`/admin/*`). Includes the structured-curation surfaces: `/api/frontmatter-schema`, `/api/frontmatter/validate`, and `/admin/embeddings/*` (dense-index status + frontmatter backfill).
-- **wikantik-mcp-core**: Shared MCP substrate — `McpTool`/`McpToolUtils`/`McpAudit`, endpoint bootstrap, the access filter, config. Hosts no tools since the Knowledge Graph removal (its shared `QueryNodesTool`/`SearchKnowledgeTool` were deleted). Extracted in 2.3.0 to break the `wikantik-knowledge → wikantik-admin-mcp` module cycle.
-- **wikantik-admin-mcp**: Admin MCP at `/wikantik-admin-mcp` — 24 tools: page authoring/inspection, `list_retrieval_queries`, `list_reader_engagement`, `list_agent_reports`, `rename_cluster` (plan unless `confirm=true`), `list_content_opportunities` + `snooze_opportunity`, `list_comment_threads` + `respond_to_comment_thread`. See `com.wikantik.mcp.McpServerInitializer`.
-- **wikantik-knowledge**: Knowledge MCP at `/knowledge-mcp` — 17 tools when fully wired: 16 read-only plus `file_agent_report`, the endpoint's one write (field reports, SA-22) (retrieval, structural spine, `get_page_neighbors`, `get_page_for_agent`, `read_pages`, `get_ontology`/`sparql_query`, `list_stale_citations`, `get_briefing` — ADR-0011). Ontology query expansion sits behind `wikantik.search.ontologyExpansion.enabled` (default off). See `com.wikantik.knowledge.mcp.KnowledgeMcpInitializer`.
-- **wikantik-tools**: OpenAPI 3.1 tool server at `/tools/*` — 2 tools (`search_wiki`, `get_page`) for OpenWebUI-compatible non-MCP clients.
-- **wikantik-scim**: SCIM 2.0 provisioning server at `/scim/v2/*`. SCIM Groups never grant the Admin role. Details in `wikantik-scim/CLAUDE.md`.
-- **wikantik-extract-cli**: Offline CLIs (`ChunkerStatsCli`, `CorpusDivergenceCli`, `GenerateMainPageCli`, `GenerateConfigReferenceCli`, …). Also hosts `IngestDocumentsCli` — the derived-pages batch ingester (an HTTP client over `POST /api/ingest`, walks a folder).
-- **wikantik-ingest**: Tika extraction for **derived pages** (frontmatter has `derived_from`; body is machine-owned, ADR-0004). Details in `wikantik-ingest/CLAUDE.md`.
-- **wikantik-plantuml**: Server-side drawing for ` ```plantuml ` fences. `plantuml-mit` is **test-scope** in wikantik-main/-rest only and must never become compile scope. Details in `wikantik-plantuml/CLAUDE.md`.
-- **wikantik-ontology**: RDF/OWL layer (Apache Jena, TDB2). **Kept by decision (2026-11-09)** after the KG removal. Details in `wikantik-ontology/CLAUDE.md`.
-- **wikantik-connectors**: Connector types syncing into derived pages via `SyncOrchestrator` (`poll()` never throws — load-bearing). Rules in `wikantik-connectors/CLAUDE.md`.
-- **wikantik-agent-reports**: agent field reports (SA-22): validation, append-only store (`agent_report*`, V098), per-key-owner hourly limit. Depends on neither `wikantik-api` nor `wikantik-main`, built to be extracted; surfaces are `file_agent_report` (knowledge MCP), `list_agent_reports` (admin MCP) and `/admin/agent-reports`. Every MCP call also writes one `mcp_tool_called` ECS event (`McpCallEvent`, SA-21). Contract: wiki `SimpleAgilityAgentActivity`.
-- **wikantik-insights** (Content Intelligence): depends on neither `wikantik-api` nor `wikantik-main`; the reference implementation of the Simple Agility feedback loop. Details in `wikantik-insights/CLAUDE.md`.
-- **wikantik-work** (work management): projects, epics/stories/tasks, comments, queues, agents (each capped by a sponsor, with its own `wka_` token), claims, change records with autonomy gates, deployments, intake for people outside a project (the `reporter` role) and an append-only event log in `work_*` tables (V074, V076–V096, V099, no V093); depends on neither `wikantik-api` nor `wikantik-main`; every caller goes through `WorkService`; ships dark behind `wikantik.work.enabled` (default `false`). Rules in `wikantik-work/CLAUDE.md`.
-- **wikantik-work-mcp**: the key-only agent endpoint `/work-mcp`; tools call `WorkService` and nothing else. Rules in `wikantik-work-mcp/CLAUDE.md`.
-- **wikantik-frontend**: React SPA (Vite build) — reader, editor, admin panel, Page Graph viewer (the Knowledge Graph UI was removed 2026-11-08)
-- **wikantik-it-tests**: Cargo-launched Tomcat + PostgreSQL/pgvector ITs. Default gate modules: `wikantik-it-test-rest` (REST + Selenide browser, built on the `wikantik-selenide-tests` test-jar), `-work` (work management: REST, `/work-mcp`, the `/work` UI), `-sso` (Keycloak OIDC+SAML), `-custom-jdbc`, `-dense` (the only one with embeddings on). Opt-in: `-scim-fullloop` (Authentik).
+Full descriptions: [ProjectReference](docs/developer/ProjectReference.md#detail-moved-from-claudemd-2026-11-28).
 
-#### Agent-facing surface summary
+- **wikantik-api** (contracts), **wikantik-main** (implementation; Obsidian importer `com.wikantik.importer`), **wikantik-http** (servlet filters: CSRF, CORS, CSP, SPA routing, `/wiki/{slug}?format=md|json`), **wikantik-rest** (`/api/*`, `/admin/*`), **wikantik-frontend** (React SPA, Vite), **wikantik-tools** (OpenAPI tool server `/tools/*`), **wikantik-it-tests** (Cargo-launched ITs).
+- **wikantik-jdbc**: **the one way to touch the database.** `com.wikantik.jdbc.Jdbc` is the only data-access primitive (`JdbcSupport` is the `extends` convenience); `inTransaction` rolls back on any `Throwable`. Enforced by `JdbcAccessArchTest` (J-1; sole carve-out `JDBCPlugin`). **Adding a repository:** hold a `Jdbc`, write the migration first, test against `PostgresTestDb`; a multi-statement write gets a rollback test. ADR-0010.
+- **wikantik-cache-memcached**: opt-in, **not wired into the WAR** (override the `CachingManager` mapping in `classmappings.xml`, set `wikantik.cache.memcached.servers`).
+- **wikantik-mcp-core**: shared MCP substrate (`McpTool`/`McpToolUtils`/`McpAudit`, access filter); hosts no tools.
+- **wikantik-admin-mcp**: `/wikantik-admin-mcp` (24 tools). See `com.wikantik.mcp.McpServerInitializer`.
+- **wikantik-knowledge**: knowledge MCP `/knowledge-mcp` (17 tools: 16 read-only plus `file_agent_report`, the one write, SA-22; `get_briefing` ADR-0011). Ontology expansion behind `wikantik.search.ontologyExpansion.enabled` (default off). See `com.wikantik.knowledge.mcp.KnowledgeMcpInitializer`.
+- **wikantik-scim**: SCIM 2.0 at `/scim/v2/*`; SCIM Groups never grant Admin. Rules in `wikantik-scim/CLAUDE.md`.
+- **wikantik-extract-cli**: offline CLIs (`ChunkerStatsCli`, `CorpusDivergenceCli`, `GenerateMainPageCli`, `GenerateConfigReferenceCli`, `IngestDocumentsCli`).
+- **wikantik-ingest**: Tika extraction for **derived pages** (frontmatter `derived_from`; body machine-owned, ADR-0004). Rules in `wikantik-ingest/CLAUDE.md`.
+- **wikantik-plantuml**: server-side drawing for ` ```plantuml ` fences. `plantuml-mit` is **test-scope** in wikantik-main/-rest only and must never become compile scope. Rules in `wikantik-plantuml/CLAUDE.md`.
+- **wikantik-ontology**: RDF/OWL (Jena, TDB2); **kept by decision**. Rules in `wikantik-ontology/CLAUDE.md`.
+- **wikantik-connectors**: connectors syncing into derived pages via `SyncOrchestrator` (`poll()` never throws — load-bearing). Rules in `wikantik-connectors/CLAUDE.md`.
+- **wikantik-agent-reports**: field reports (SA-22); depends on neither `wikantik-api` nor `wikantik-main`. Every MCP call also writes one `mcp_tool_called` ECS event (`McpCallEvent`, SA-21). Contract: wiki `SimpleAgilityAgentActivity`.
+- **wikantik-insights** (Content Intelligence): depends on neither `wikantik-api` nor `wikantik-main`; the reference feedback-loop implementation. Rules in `wikantik-insights/CLAUDE.md`.
+- **wikantik-work** (work management): depends on neither `wikantik-api` nor `wikantik-main`; every caller goes through `WorkService`; ships dark behind `wikantik.work.enabled` (default `false`). Invariants in `wikantik-work/CLAUDE.md`; reference by area in `docs/developer/work/`.
+- **wikantik-work-mcp**: key-only endpoint `/work-mcp`; tools call `WorkService` only. Rules in `wikantik-work-mcp/CLAUDE.md`.
 
-The endpoint/module/protocol/auth table for every agent-facing surface (`/wikantik-admin-mcp`, `/knowledge-mcp`, `/work-mcp`, `/tools/*`, `/scim/v2/*`, `/api/*`, `/admin/*`, `/wiki/{slug}?format=`, `/api/changes`, `/api/bundle`, `/api/briefing`, `/sparql`) is in [ProjectReference](docs/developer/ProjectReference.md#agent-facing-surface-summary).
+Table of every agent-facing surface (endpoint, module, protocol, auth): [ProjectReference](docs/developer/ProjectReference.md#agent-facing-surface-summary).
 
 ### Rendering Pipeline
 
-- **Rendered fences** (` ```mermaid `, ` ```plantuml `; the `example` modifier keeps either as code): `com.wikantik.markdown.extensions.fences`, validated server- and client-side against one fixture (`wikantik-frontend/src/utils/__fixtures__/renderedFences.json`); unsafe sources show as source plus reason. Mermaid draws in the browser. PlantUML is server-drawn: a signed placeholder that `ServerFenceResolver` splices **once, at the outermost `textToHTML`**, so render caches never hold drawings. New renderer: see the `RenderedFenceRenderer` Javadoc. Corpus checkers: `bin/check-plantuml.sh`, `check-mermaid.mjs`.
+- **Rendered fences** (` ```mermaid `, ` ```plantuml `; the `example` modifier keeps either as code): `com.wikantik.markdown.extensions.fences`, validated server- and client-side against one fixture (`wikantik-frontend/src/utils/__fixtures__/renderedFences.json`). PlantUML is server-drawn: `ServerFenceResolver` splices the drawing **once, at the outermost `textToHTML`**, so render caches never hold drawings. New renderer: `RenderedFenceRenderer` Javadoc. Corpus checkers: `bin/check-plantuml.sh`, `check-mermaid.mjs`.
 
 ### Security Model
 
-- JAAS-based authentication and authorization
-- Fine-grained permissions: `view`, `comment`, `edit`, `modify`, `upload`, `rename`, `delete` (page); `createPages`, `createGroups`, `editPreferences`, `editProfile`, `login` (wiki)
-- **Database-backed policy grants** — default role permissions stored in `policy_grants` table, managed via admin UI at `/admin/security`
-- **Database-backed groups** — stored in `groups` + `group_members` tables, managed via admin UI
-- Page-level ACLs via inline `[{ALLOW view Admin}]` syntax in page content
-- REST API permission enforcement — all `/api/*` endpoints check ACLs via `RestServletBase.checkPagePermission()`
-- Admin endpoints at `/admin/*` protected by `AdminAuthFilter` (requires `AllPermission`)
+- Page-level ACLs are inline `[{ALLOW view Admin}]` in page content. All `/api/*` endpoints check ACLs via `RestServletBase.checkPagePermission()`. `/admin/*` is protected by `AdminAuthFilter` (requires `AllPermission`).
 - **Private clusters** — `wikantik.access.privateClusters` (+ `.viewers`) makes every page in a listed cluster (or sub-cluster) Admin/viewer-group only, for all actions. One gate, `PrivateClusterGate`, inside `DefaultAuthorizationManager`; a page ACL can only narrow further. The admin MCP bypasses it by design. Settings need a restart plus `POST /admin/ontology/rebuild`; runbook in WikantikOperations section 1.12.
-- Bootstrap admin override — `wikantik.admin.bootstrap` property guarantees admin access during initial setup
-- Database-backed policy grants — always active when `wikantik.datasource` is configured (the default)
-- NIST 800-63B password validation with common-password blocklist
 - `JDBCPlugin` (page-authored SQL against the wiki datasource) ships **disabled by default** behind `wikantik.plugin.jdbc.enabled` (checked before even the admin gate) — enable it only if you accept that a high-privilege DB role executes editor-supplied SQL.
-- SSRF egress policy on connector fetches — `EgressGuard` (`wikantik-connectors`) rejects non-http(s) schemes and any host resolving to loopback/private/link-local/multicast/IPv6-ULA addresses, re-validated on every redirect hop; `wikantik.connectors.egress.allowPrivate=true` opts a deliberate internal crawl back in.
-- Render caches skip viewer-dependent output — a render that consults the caller's session/ACLs (e.g. an ACL-aware `InsertPage`, `$username`) flags itself via `Context.VAR_VIEWER_SENSITIVE` and is excluded from the principal-less document/HTML caches, so it can't be cached for one user and served to another.
-- Deserialization filtering — `ObjectInputFilter` whitelists on all `ObjectInputStream` usage
-- MCP API-key scopes (`ApiKeyService.Scope`): `mcp_read` (`/knowledge-mcp` only) ⊂ `mcp_admin` (the full admin MCP). The legacy `mcp` scope is still accepted as an alias for `mcp_admin`, and every use is WARNed by `LegacyScopeUseLog`. Admin keys stay fully privileged by decision (#62, won't-fix). The `work` scope (`/api/work/*` and `/work-mcp`) matches only itself and `all`: a `work` key is useless on the other MCP endpoints and `/tools/*`, and no other scope reaches work. A `work` key acts as its owner and is never an agent: work agents carry their own token (`wka_…`, verified by the work module through `AgentTokenAuth`). A credential request (key or agent token) on `/api/work/*` or `/work-mcp` carries no principal and never becomes a session (`WorkApiKeyFilter`, `AgentTokenAuth.isCredentialRequest`).
-- Pluggable authentication (LDAP, database, container, SSO via pac4j)
+- SSRF egress policy on connector fetches — `EgressGuard` (`wikantik-connectors`) rejects non-http(s) schemes and hosts resolving to loopback/private/link-local/multicast/IPv6-ULA addresses, re-validated on every redirect hop; `wikantik.connectors.egress.allowPrivate=true` opts a deliberate internal crawl back in.
+- Render caches skip viewer-dependent output — a render that consults the caller's session/ACLs (e.g. ACL-aware `InsertPage`, `$username`) must flag itself via `Context.VAR_VIEWER_SENSITIVE`, which excludes it from the principal-less document/HTML caches.
+- `ObjectInputFilter` whitelists on all `ObjectInputStream` usage.
+- MCP API-key scopes (`ApiKeyService.Scope`): `mcp_read` (`/knowledge-mcp` only) ⊂ `mcp_admin` (the full admin MCP). Legacy `mcp` is an alias for `mcp_admin`, WARNed by `LegacyScopeUseLog`. Admin keys stay fully privileged (#62, won't-fix). The `work` scope (`/api/work/*` and `/work-mcp`) matches only itself and `all`: a `work` key is useless on the other MCP endpoints and `/tools/*`, and no other scope reaches work. A `work` key acts as its owner, never an agent: work agents carry their own token (`wka_…`, verified by the work module through `AgentTokenAuth`). A credential request (key or agent token) on `/api/work/*` or `/work-mcp` carries no principal and never becomes a session (`WorkApiKeyFilter`, `AgentTokenAuth.isCredentialRequest`).
 - Public identity is the **display name** (`users.full_name`, unique, `ProfileNameRules`). Login names show only to their owner and admin surfaces — resolve them through `PublicIdentity`; authorship is stored as the login (`AuthorKeys`). Strip `[{ALLOW …}]` for reader surfaces only via `com.wikantik.auth.acl.AclDirectiveText` — never call `AclDirectives` directly.
-- SSO binds on `wikantik.sso.identityClaim` (default `sub`) and never adopts a non-SSO local account of the same name (fails closed without the `sso.subject` marker). The SAML `/sso/callback` is CSRF-exempt by design; login rotates the session; failures redirect to `/login?error=` (a dual-registered SPA route).
+- SSO binds on `wikantik.sso.identityClaim` (default `sub`) and never adopts a non-SSO local account of the same name (fails closed without the `sso.subject` marker). The SAML `/sso/callback` is CSRF-exempt by design; login rotates the session; failures redirect to `/login?error=` (dual-registered SPA route).
 
 ### Important Configuration
 
@@ -328,127 +225,56 @@ The endpoint/module/protocol/auth table for every agent-facing surface (`/wikant
 
 ### Active Design Documents
 
-Read the linked design doc before touching the relevant subsystem. Detailed "what shipped" status for
-each is recorded in [docs/developer/ProjectReference.md](docs/developer/ProjectReference.md#active-design-documents--detailed-status).
+Read the linked design doc before touching its subsystem. Status: [ProjectReference](docs/developer/ProjectReference.md#active-design-documents--detailed-status).
 
-- **[StructuralSpineDesign.md](docs/wikantik-pages/StructuralSpineDesign.md)** — structural index (a Page Graph sub-area). `Main.md` is **generated**: edit `docs/wikantik-pages/Main.pins.yaml` (`MainPageRegressionTest` reverts hand-edits). Save-time `canonical_id` enforcement is on (`StructuralSpinePageFilter`).
-- **[AgentGradeContentDesign.md](docs/wikantik-pages/AgentGradeContentDesign.md)** — agent-grade content: `type: runbook`, page verification, `/api/pages/for-agent/{id}` projection, derived `agent_hints`, retrieval-quality CI. All six phases shipped 2026-04-25.
-- **[HybridRetrieval.md](docs/wikantik-pages/HybridRetrieval.md)** — BM25 + dense (RRF), fail-closed to BM25; backend `wikantik.search.dense.backend = inmemory | pgvector | lucene-hnsw` (**docker1: `lucene-hnsw`**). Levers that worked (recall@12 0.60→0.74): the `ContentChunker` heading-boundary fix and contextual embeddings (`EmbeddingTextBuilder.forDocument` prefixes `Page | Cluster | Section` + summary). **Wikantik never calls a chat model** — `wikantik.genai.mode` is `full|none` (`embeddings-only` is a legacy alias for `full`). **Measured dead, don't retry:** LLM reranker and query decomposition (removed 2.5.15), HyDE, doc2query, KG graph rerank. **Op gotcha:** `inmemory`/`lucene-hnsw` reload after a bulk re-embed only if the run **succeeds**; a failed run leaves hybrid silently BM25-only — tell: bundle `topSimilarity: -1.0`, `confidence: unknown`.
-- **[PageGraphVsKnowledgeGraph.md](docs/wikantik-pages/PageGraphVsKnowledgeGraph.md)** — the Page Graph explainer and what replaced each job of the removed Knowledge Graph.
-- **[ClusterDeclarationDesign.md](docs/wikantik-pages/ClusterDeclarationDesign.md)** — all 7 phases shipped (2.4.0, ADR-0009). A cluster exists iff exactly one page has `type: hub` + scalar `cluster: <path>`; sub-clusters are `parent/child`, **one level, permanently** (limit lives only in `CLUSTER_SLUG_PATTERN`). Rules:
+- **[StructuralSpineDesign.md](docs/wikantik-pages/StructuralSpineDesign.md)** — `Main.md` is **generated**: edit `docs/wikantik-pages/Main.pins.yaml` (`MainPageRegressionTest` reverts hand-edits). Save-time `canonical_id` enforcement is on (`StructuralSpinePageFilter`).
+- **[AgentGradeContentDesign.md](docs/wikantik-pages/AgentGradeContentDesign.md)**, **[PageGraphVsKnowledgeGraph.md](docs/wikantik-pages/PageGraphVsKnowledgeGraph.md)**.
+- **[HybridRetrieval.md](docs/wikantik-pages/HybridRetrieval.md)** — BM25 + dense (RRF), fail-closed to BM25; backend `wikantik.search.dense.backend = inmemory | pgvector | lucene-hnsw` (**docker1: `lucene-hnsw`**). **Wikantik never calls a chat model** — `wikantik.genai.mode` is `full|none` (`embeddings-only` is a legacy alias for `full`). **Measured dead, don't retry:** LLM reranker and query decomposition (removed 2.5.15), HyDE, doc2query, KG graph rerank. **Op gotcha:** `inmemory`/`lucene-hnsw` reload after a bulk re-embed only if the run **succeeds**; a failed run leaves hybrid silently BM25-only — tell: bundle `topSimilarity: -1.0`, `confidence: unknown`.
+- **[ClusterDeclarationDesign.md](docs/wikantik-pages/ClusterDeclarationDesign.md)** — a cluster exists iff exactly one page has `type: hub` + scalar `cluster: <path>`; sub-clusters are `parent/child`, **one level, permanently** (limit lives only in `CLUSTER_SLUG_PATTERN`; ADR-0009). Rules:
   - Compare clusters only via `ClusterPath` — **never `startsWith`**. `ClusterPath.memberships(raw)` resolves scalar-vs-list: non-hub pages may list several clusters (`PageDescriptor.cluster()` is the primary, `clusters()` all); a list-valued hub is an ERROR.
   - The one blocking rule (duplicate declaration → 422 in `StructuralSpinePageFilter`) ships **dark**: `wikantik.cluster_declaration.enforcement.enabled=false`. Everything else is a WARNING on `/admin/drift`. `hubs:` and `HubSyncFilter` are deleted; hub `hasPart` is derived from membership.
   - `rename_cluster` / `POST /admin/clusters/rename` rewrites `cluster:` only; unconfirmed = plan, not error; refuses a target another hub declares. MCP tools register **unconditionally** — a new tool must be added to `wikantik-mcp-instructions.txt` **and** `McpProtocolIT.EXPECTED_TOOLS` (else `InstructionsRegistryDriftTest`/`McpInstructionsDriftIT`/`McpProtocolIT` fail).
   - `ClusterStatus.jsx` (PageMeta) is client-side only, gated on `page.permissions.edit`; reads `hub_declared` (Gson omits a null `hub_slug`).
   - **Corpus divergence (read before ANY corpus-wide content work):** `docs/wikantik-pages/` and the prod page store are different corpora — **prod is authoritative, the checkout is a mirror**. Plan from the live index (`list_clusters`/`list_pages_by_filter`), never the repo. Prod pages carry prod-only `**Cluster Hub:**` footers and CRLF line endings — preserve both when pushing repo text (three-way merge from the last release tag, not a blind overwrite). Measure the gap with `CorpusDivergenceCli` (exit 2 = refused, incomplete snapshot; 1 = divergence under `--check`).
-- **[RetrievalExperimentHarness.md](docs/wikantik-pages/RetrievalExperimentHarness.md)** — implemented, not yet scheduled.
-- **[Work management design](docs/superpowers/specs/2026-11-15-work-management-design.md)** — all four phases built, behind `wikantik.work.enabled`: 1 (core: projects, board, items, dates, activity, REST, `/work` UI), 2 (queues, agents, claims, `/work-mcp`, the assignment log), 3a (agent sponsors and agents' own credentials: [design](docs/superpowers/specs/2026-11-16-work-agent-identity-design.md)), 3b (change records, autonomy gates, acknowledging work closed without a person: [plan](docs/superpowers/plans/2026-11-16-work-management-phase3b-changes-autonomy.md)) and 4 (deployments, the deploy gate, `bin/work-deploy-gate.sh`, the incident path: [plan](docs/superpowers/plans/2026-11-16-work-management-phase4-deployments.md)). The plans' "Decisions" sections record what the owner settled where the design is silent.
-- **[IndexingSupport.md](docs/admin/IndexingSupport.md)** — raw content + change feed + sitemap for RAG/SEO.
-- **[RAG-as-a-Service design](docs/superpowers/specs/2026-06-13-rag-as-a-service-and-knowledge-base-design.md)** — assemble a ranked, de-duplicated, version-pinned-**cited** context bundle, NEVER a synthesized answer (ADR-0001). Logic `com.wikantik.knowledge.bundle.*`; surfaces `GET /api/bundle` + `assemble_bundle`; default source is global dense chunks. `bundleAssemblyService` is wired at the `WikiEngine.patchContextRetrievalService` seam — keep `BundleServiceWiring` off the `getManager` allow-list (DecompositionArchTest R-2). ADRs `docs/adr/0001`–`0007`, glossary `CONTEXT.md`.
+- **[RetrievalExperimentHarness.md](docs/wikantik-pages/RetrievalExperimentHarness.md)**, **[IndexingSupport.md](docs/admin/IndexingSupport.md)**.
+- **[Work management design](docs/superpowers/specs/2026-11-15-work-management-design.md)** — the plans' "Decisions" sections record what the owner settled where it is silent.
+- **[RAG-as-a-Service design](docs/superpowers/specs/2026-06-13-rag-as-a-service-and-knowledge-base-design.md)** — assemble a ranked, de-duplicated, version-pinned-**cited** context bundle, NEVER a synthesized answer (ADR-0001). Logic `com.wikantik.knowledge.bundle.*`; `GET /api/bundle` + `assemble_bundle`. `bundleAssemblyService` is wired at the `WikiEngine.patchContextRetrievalService` seam — keep `BundleServiceWiring` off the `getManager` allow-list (DecompositionArchTest R-2). ADRs `docs/adr/0001`–`0007`, glossary `CONTEXT.md`.
 - **[Structured page curation](docs/superpowers/specs/2026-06-08-structured-page-curation-design.md)** — the server-authoritative `FrontmatterSchema` validates every save path (REST + MCP). **Gotcha:** field-value checks are WARNINGS (only malformed YAML returns 422), so legacy corpus pages still save; SnakeYAML pre-parses `date`/`audience`.
 
 ### Testing Approach
 
 - **Database tests**: `@RequiresPostgres` + `PostgresTestDb.createDataSource()`; call `PostgresTestDb.truncate(…)` in `@BeforeEach` (the container is shared — never `DROP`/`ALTER`). Test rollbacks with `FaultInjectingDataSource`. Never hand-write `CREATE TABLE`; write the migration.
-- **Seeded generator (fuzz) tests**: take counts and seeds from `com.wikantik.testing.Fuzz` (`Fuzz.cases(n)`, `Fuzz.seed(written)`, `Fuzz.reproduce()` in the failure message). The gate runs a twentieth of the cases on the written seeds; `bin/run-tests.sh --all` / `--deep` (`-Dtests.fuzz=deep`) runs every case on fresh seeds. A fixed seed re-checks the same inputs every build, so the full count belongs in the deep run, not the gate.
-
-### Critical: Integration Test Parallelism
-
-Parallel IT execution is supported ONLY through `bin/run-tests.sh --parallel N`:
-its single reactor gives every IT module a build-helper-reserved free port set
-and a uniquely-named pgvector container, so they cannot collide. Do NOT bolt
-`-T` onto a raw `mvn clean install -Pintegration-tests` invocation yourself —
-run-tests.sh is the sanctioned path (it also serializes runs per checkout via a
-lock; concurrent Maven builds on one working tree corrupt each other's surefire
-state). The opt-in Authentik scim-fullloop suite always runs sequentially and is
-never folded into `--parallel`.
-
-The shared embedder is the one resource NOT per-module: run-tests.sh starts a single
-container on 11435 for the whole IT phase, so the model loads once regardless of N.
-Only `wikantik-it-test-dense` actually uses it. Invoking that module's failsafe run
-directly (bare `mvn -pl …`) skips that setup and the suite fails at `@BeforeAll` with
-the compose command it wanted — start it by hand or use `bin/run-tests.sh --module dense`.
-
-**Correct usage:**
-```bash
-# Canonical gate — unit phase + 4-wide parallel IT phase
-bin/run-tests.sh --parallel 4
-
-# Sequential IT fallback (e.g. when diagnosing a suspected cross-module issue)
-bin/run-tests.sh
-
-# Unit tests only - can use parallel builds
-mvn clean install -T 1C -DskipITs
-```
-
-Test suite reliability is critical for this project's development workflow.
+- **Seeded generator (fuzz) tests**: take counts and seeds from `com.wikantik.testing.Fuzz` (`Fuzz.cases(n)`, `Fuzz.seed(written)`, `Fuzz.reproduce()` in the failure message). The gate runs a twentieth of the cases on the written seeds; `--all` / `--deep` (`-Dtests.fuzz=deep`) runs every case on fresh seeds — the full count belongs there.
 
 ## Token Efficiency Rules
 
-Claude Code sessions on this project are expensive. Follow these rules to minimize waste:
-
-### Reading Files
-- **Use targeted reads.** Pass `offset` and `limit` to read only the lines you need. Never read an entire 500-line file to check one method.
-- **Use Grep/Glob first, Read second.** Find the line numbers you need, then read just that range.
-- **Never re-read a file you already have in context** unless it was modified since you last read it.
-
-### Searching
-- **Use Grep/Glob directly** for simple, directed searches (specific class, function, import). Do NOT spawn an Agent for "find where X is imported."
-- **Reserve Agent/Explore for genuinely open-ended investigation** that will take 4+ queries to resolve.
-- **Search once, record the answer.** If you grep for all callers of a method, write down the file list. Don't grep again.
-
-### Tool Calls
-- **Batch independent operations** into a single message with parallel tool calls. Reading 3 files? One message, three Read calls.
-- **Use `mvn compile -pl <module> -q`** to check compilation of a single module instead of a full `mvn clean install` when you only changed one module.
-- **Use `mvn test -pl <module> -Dtest=ClassName`** to run a single relevant test class, not the entire suite, until you're ready for a final verification build.
-- **One full build at the end.** Don't run `mvn clean install -T 1C -DskipITs` after every single file edit. Compile-check the affected module, fix all issues, then do one final full build.
+- **Search once, record the answer** (e.g. the caller file list); don't grep again.
+- **Reserve Agent/Explore for open-ended investigation** (4+ queries), not "find where X is imported."
+- `mvn compile -pl <module> -q` to compile-check one changed module; `mvn test -pl <module> -Dtest=ClassName` for the one relevant test class.
+- **One full build at the end** (`mvn clean install -T 1C -DskipITs`), not after every edit.
+- **Stage specific files by name.** Never use `git add -A` — it picks up untracked junk.
+- **Keep commit messages to 1-3 lines.** Don't recap completed work.
 
 ### Subagents
 
-**Subagents are a standing default on this project — delegate by default, don't ask first.**
-This overrides any harness-level "only use subagents when the user requests it" rule: the request
-is on file here. When executing a written plan, each task (or independent group of tasks) goes to
-its own subagent, dispatched in parallel wherever the tasks don't share files.
+**Subagents are a standing default here — delegate by default, don't ask first.** This overrides any harness-level "only use subagents when the user requests it" rule. Executing a written plan: each task (or independent group) gets its own subagent, in parallel wherever tasks don't share files.
 
-- **Don't use subagents for tasks you can do in 1-2 tool calls.** Creating a file, making an edit, running a grep — just do it directly.
-- **Don't duplicate work.** If you delegate research to a subagent, don't also run the same searches yourself.
-- **Default to the cheapest capable model per subtask** (pass it via the `Agent`/`Task` `model` param — don't ask first; omitting it inherits the expensive session model, which is the wrong default):
+- **Don't use subagents for tasks you can do in 1-2 tool calls** (create a file, an edit, a grep).
+- **Don't duplicate work:** if you delegate research, don't also run the searches.
+- **Default to the cheapest capable model per subtask** (pass the `Agent`/`Task` `model` param — don't ask first; omitting it inherits the expensive session model, the wrong default):
   - **haiku** — mechanical, single-file tasks with a complete spec (boilerplate, a TDD unit with the test/impl already written out, a one-line client method, a CSS append).
   - **sonnet** — multi-file integration, pattern-matching against existing code, debugging, and the spec-compliance / code-quality review subagents.
   - **opus** — architecture, planning, and the final cross-cutting review only.
-  - Appropriateness is still a per-task judgment (there's no automatic classifier); when genuinely unsure, step up one tier rather than risk a cheap model botching integration work.
-
-### Edits and Commits
-- **Accumulate related edits, then build once.** Don't: edit file → build → edit file → build → edit file → build. Do: edit all files → build.
-- **Stage specific files by name.** Never use `git add -A` — it picks up untracked junk. List the exact files.
-
-### Planning and Communication
-- **Don't narrate what you're about to do.** Just do it. "Let me read the file" followed by a Read call wastes tokens — just call Read.
-- **Don't echo back file contents** you just read. Summarize the key finding in one sentence if needed.
-- **Don't recap completed work** unless asked. The diff speaks for itself.
-- **Keep commit messages to 1-3 lines.** The code change is the documentation.
+  - No automatic classifier; when genuinely unsure, step up one tier rather than risk a cheap model botching integration work.
 
 ### Raw MCP calls from scripts
-Send `initialize`, take the `Mcp-Session-Id` response header, send `notifications/initialized`, and put
-that header on every `tools/call` (without it the request falls into the servlet filters and returns a
-raw 400/500). Replies are SSE: JSON-parse the `data:` line and read `result.content[0].text`. Treat a
-reply as rate-limited (429) only when it has **no** `data:` line — matching "429" in the body gave a
-false retry and a duplicate save. SPARQL needs `PREFIX wk: <https://wiki.wikantik.com/ns/wikantik#>`;
-`SELECT` returns `sparql-results-json` (`results.bindings`).
+Handshake, SSE parsing, 429 detection and SPARQL prefix rules: [docs/agents/raw-mcp-calls.md](docs/agents/raw-mcp-calls.md).
 
 ### Formatting LaTeX Math
 The inline (`$x$`, no inner spaces) and block (`$$` on its own, blank lines around it) rules live in the `wiki-content` skill — load it before writing formulas into a page.
 
 ## Agent skills
 
-### Issue tracker
-
-Issues are tracked as GitHub issues in `github.com/jakefearsd/wikantik` via the `gh` CLI. See `docs/agents/issue-tracker.md`.
-
-### Triage labels
-
-The five canonical triage roles map to their default label strings (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). **Only `wontfix` actually exists on the repo** (verified 2026-08-16) — the other four were never created, so applying one fails. See `docs/agents/triage-labels.md` for the two ways to resolve it.
-
-### Domain docs
-
-Single-context: one `CONTEXT.md` + `docs/adr/` at the repo root (created lazily by `/grill-with-docs`). See `docs/agents/domain.md`.
+- **Issue tracker:** GitHub issues, `github.com/jakefearsd/wikantik`, via `gh`. See `docs/agents/issue-tracker.md`.
+- **Triage labels:** default strings `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. **Only `wontfix` exists on the repo** — applying the other four fails. See `docs/agents/triage-labels.md` for the two ways to resolve it.
+- **Domain docs:** one `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.

@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.8.12] - 2026-11-27
+
 - Collaborative editing could lose a word: when a save from outside the editor deleted text next to a repeated run, and a collaborator had already deleted part of it, the merge could cut the following token out of the draft. An ambiguous deletion now lands on the text the draft already deleted (found by the release gate's fresh-seed fuzz run).
 - Work: onboarding. A getting-started card on `/work`, starter queues, a project default product (cleared when the product is archived), people and group suggestions when adding members, registering and admitting an agent in one pass with a copyable `claude mcp add` command, and a `setup` hint in `get_work_context` saying why an agent can claim nothing.
 - Build: the work management ITs run in their own IT module, `wikantik-it-test-work` (`bin/run-tests.sh --module work`), beside the REST ITs instead of after them; the gate still runs at most four IT modules at once.

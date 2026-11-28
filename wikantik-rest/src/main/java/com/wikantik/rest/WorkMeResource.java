@@ -42,7 +42,7 @@ public class WorkMeResource extends WorkResourceBase {
         route( r, "GET", "me", c -> {
             final JsonObject out = new JsonObject();
             out.add( "waitingOn", waitingOn( c ) );
-            out.add( "projects", visibleProjects( c ) );
+            out.add( "projects", WorkProjectJson.visible( c.svc, c.actor ) );
             out.add( "reportable", WorkIntakeJson.reportable( c.svc.features().intake().reportableProjects( c.actor ) ) );
             out.add( "deploymentsAwaiting", WorkDeploymentJson.brief( c.svc.deployments().awaitingMyApproval( c.actor ) ) );
             out.add( "notify", notify( c ) );

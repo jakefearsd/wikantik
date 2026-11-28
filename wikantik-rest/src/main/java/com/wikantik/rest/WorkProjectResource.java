@@ -36,7 +36,7 @@ public class WorkProjectResource extends WorkResourceBase {
 
     @Override
     protected void routes( final SegmentRouteTable.Builder< Handler > r ) {
-        route( r, "GET", "projects", c -> c.json( visibleProjects( c ) ) );
+        route( r, "GET", "projects", c -> c.json( WorkProjectJson.visible( c.svc, c.actor ) ) );
         route( r, "POST", "projects", c -> {
             final JsonObject b = c.body();
             if ( b == null ) {
@@ -44,10 +44,9 @@ public class WorkProjectResource extends WorkResourceBase {
             }
             final Project p = c.svc.createProject( c.actor, requiredString( b, "key" ), optString( b, "name" ),
                 optString( b, "description" ) );
-            c.created( projectWithRole( p, c.svc.roleIn( c.actor, p.key() ).wire(),
-                productKeys( c ) ) );
+            c.created( WorkProjectJson.created( c.svc, c.actor, p ) );
         } );
-        route( r, "GET", "projects/{}", c -> c.json( projectJson( c, c.pathParam( 0 ) ) ) );
+        route( r, "GET", "projects/{}", c -> c.json( WorkProjectJson.one( c.svc, c.actor, c.pathParam( 0 ) ) ) );
         route( r, "PATCH", "projects/{}", this::update );
         route( r, "POST", "projects/{}/archive", c -> {
             c.svc.archiveProject( c.actor, c.pathParam( 0 ) );
@@ -152,7 +151,7 @@ public class WorkProjectResource extends WorkResourceBase {
             final String productKey = optString( b, "defaultProductKey" );
             c.svc.features().setDefaultProduct( c.actor, key, productKey == null ? "" : productKey );
         }
-        c.json( projectJson( c, key ) );
+        c.json( WorkProjectJson.one( c.svc, c.actor, key ) );
     }
 
     /** DELETE carries its target in the body, or in the query string for clients that cannot send one. */
